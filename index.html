@@ -22,6 +22,8 @@
     --ferias-text: #b91c1c;
     --temp-away-bg: #ede9fe;
     --temp-away-text: #5b21b6;
+    --outras-bg: #cffafe;
+    --outras-text: #0e7490;
     --empty-text: #c3cad4;
   }
   *{ box-sizing: border-box; }
@@ -147,6 +149,7 @@
   .day-card.noite{ background: var(--noite-bg); color: var(--noite-text); }
   .day-card.folga{ background: var(--folga-bg); color: var(--folga-text); }
   .day-card.atestado{ background: var(--atestado-bg); color: var(--atestado-text); }
+  .day-card.outras{ background: var(--outras-bg); color: var(--outras-text); }
   .day-card.ferias{ background: var(--ferias-bg); color: var(--ferias-text); }
   .day-card.temp-away{ background: var(--temp-away-bg); color: var(--temp-away-text); }
   .day-card.temp-here{ border-style: dashed; opacity: .65; }
@@ -523,6 +526,13 @@
         <span class="slider"></span>
       </label>
     </div>
+    <div class="toggle-row">
+      <label for="dayOutras">Outras atividades</label>
+      <label class="switch">
+        <input type="checkbox" id="dayOutras">
+        <span class="slider"></span>
+      </label>
+    </div>
 
     <div class="modal-actions">
       <button class="btn btn-secondary" id="dayCancelBtn">Cancelar</button>
@@ -572,12 +582,12 @@
   }
 
   // Dia usando o horário padrão do técnico (custom:false — inicio/fim vêm de tech.horarioPadrao)
-  function hp(folga, atestado){
-    return { custom: false, inicio: "", fim: "", folga: !!folga, atestado: !!atestado };
+  function hp(folga, atestado, outras){
+    return { custom: false, inicio: "", fim: "", folga: !!folga, atestado: !!atestado, outras: !!outras };
   }
   // Dia com horário próprio, diferente do padrão do técnico
-  function hc(inicio, fim, folga, atestado){
-    return { custom: true, inicio: inicio||"", fim: fim||"", folga: !!folga, atestado: !!atestado };
+  function hc(inicio, fim, folga, atestado, outras){
+    return { custom: true, inicio: inicio||"", fim: fim||"", folga: !!folga, atestado: !!atestado, outras: !!outras };
   }
 
   function novoDiasVazios(){
@@ -675,7 +685,8 @@
           inicio: d.inicio || "",
           fim: d.fim || "",
           folga: !!d.folga,
-          atestado: !!d.atestado
+          atestado: !!d.atestado,
+          outras: !!d.outras
         };
       });
     }
@@ -851,6 +862,7 @@
       }
       if(diaData.folga) return { cls: "folga", label: "Folga" };
       if(diaData.atestado) return { cls: "atestado", label: "Atestado" };
+      if(diaData.outras) return { cls: "outras", label: "Outras atividades" };
       var horario = horarioEfetivo(tech, diaData);
       if(!horario.inicio || !horario.fim) return { cls: "empty", label: "—" };
       return { cls: shiftClass(horario), label: horario.inicio + "–" + horario.fim };
@@ -1259,6 +1271,7 @@
     document.getElementById("dayFim").value = horario.custom ? (horario.fim || "") : (tech.horarioPadrao.fim || "");
     document.getElementById("dayFolga").checked = !!horario.folga;
     document.getElementById("dayAtestado").checked = !!horario.atestado;
+    document.getElementById("dayOutras").checked = !!horario.outras;
     fillDayDuplaSelect(document.getElementById("dayDupla"), tech, dataIso);
     updateDayInputsState();
     document.getElementById("dayModal").classList.remove("hidden");
@@ -1285,7 +1298,8 @@
       inicio: custom ? document.getElementById("dayInicio").value : "",
       fim: custom ? document.getElementById("dayFim").value : "",
       folga: document.getElementById("dayFolga").checked,
-      atestado: document.getElementById("dayAtestado").checked
+      atestado: document.getElementById("dayAtestado").checked,
+      outras: document.getElementById("dayOutras").checked
     };
     if(duplaSelVal !== "__padrao__"){
       novaExcecao.duplaOverride = duplaSelVal;
@@ -1324,6 +1338,7 @@
   --atestado-bg:#e2f4f1;--atestado-text:#0d7a6c;
   --ferias-bg:#fce7ec;  --ferias-text:#bd1550;
   --temp-bg:#f2ecfd;    --temp-text:#7139c9;
+  --outras-bg:#e0f2f7;  --outras-text:#0e7490;
 
   --shadow:0 1px 2px rgba(20,30,50,.04), 0 6px 16px -8px rgba(20,30,50,.12);
 }
@@ -1347,6 +1362,7 @@
     --atestado-bg:rgba(20,166,148,.18);--atestado-text:#6be0cc;
     --ferias-bg:rgba(217,49,101,.18);--ferias-text:#f793ae;
     --temp-bg:rgba(139,92,246,.2);   --temp-text:#c9b3fb;
+    --outras-bg:rgba(6,182,212,.18); --outras-text:#67e8f9;
 
     --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 20px -10px rgba(0,0,0,.5);
   }
@@ -1470,6 +1486,7 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
 .day-card.noite{background:var(--noite-bg);color:var(--noite-text);border-color:transparent;}
 .day-card.folga{background:var(--folga-bg);color:var(--folga-text);border-color:transparent;}
 .day-card.atestado{background:var(--atestado-bg);color:var(--atestado-text);border-color:transparent;}
+.day-card.outras{background:var(--outras-bg);color:var(--outras-text);border-color:transparent;}
 .day-card.ferias{background:var(--ferias-bg);color:var(--ferias-text);border-color:transparent;}
 .day-card.temp-away{background:var(--temp-bg);color:var(--temp-text);border-color:transparent;}
 .day-card.temp-here{border-style:dashed;opacity:.7;background:var(--surface);}
@@ -1493,6 +1510,7 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
 .legend .swatch.noite{background:var(--noite-bg);color:var(--noite-text);}
 .legend .swatch.folga{background:var(--folga-bg);color:var(--folga-text);}
 .legend .swatch.atestado{background:var(--atestado-bg);color:var(--atestado-text);}
+.legend .swatch.outras{background:var(--outras-bg);color:var(--outras-text);}
 .legend .swatch.ferias{background:var(--ferias-bg);color:var(--ferias-text);}
 .legend .swatch.temp{background:var(--temp-bg);color:var(--temp-text);}
 
@@ -1529,7 +1547,8 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     folga: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>',
     atestado: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 6v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V6z"></path><path d="M12 8v6M9 11h6"></path></svg>',
     ferias: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21c4-8 12-8 16-16"></path><path d="M20 5c0 4-3 6-8 6"></path></svg>',
-    "temp-away": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5M21 12H9"></path></svg>'
+    "temp-away": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5M21 12H9"></path></svg>',
+    outras: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>'
   };
 
   function iconeParaCls(cls){
@@ -1598,6 +1617,7 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
       '<div class="item"><span class="swatch atestado">' + ICONES_STATUS.atestado + '</span>Atestado</div>' +
       '<div class="item"><span class="swatch ferias">' + ICONES_STATUS.ferias + '</span>Férias</div>' +
       '<div class="item"><span class="swatch temp">' + ICONES_STATUS["temp-away"] + '</span>Deslocado temporariamente</div>' +
+      '<div class="item"><span class="swatch outras">' + ICONES_STATUS.outras + '</span>Outras atividades</div>' +
     '</div>';
   }
 
