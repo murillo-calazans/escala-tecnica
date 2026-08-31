@@ -1305,7 +1305,206 @@
     });
   });
 
-  var EXPORT_CSS = ':root{--bg:#f4f6f9;--card-bg:#ffffff;--border:#e2e6ec;--text:#1f2530;--text-muted:#7a8494;--manha-bg:#dbeafe;--manha-text:#1e40af;--noite-bg:#d1fae5;--noite-text:#065f46;--folga-bg:#eef1f5;--folga-text:#97a1b0;--atestado-bg:#fef3c7;--atestado-text:#92400e;--ferias-bg:#fee2e2;--ferias-text:#b91c1c;--temp-away-bg:#ede9fe;--temp-away-text:#5b21b6;--empty-text:#c3cad4;} * {box-sizing:border-box;} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);padding:24px 32px 48px;} .page-topbar{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,#0c2647,#17427a);padding:12px 24px;border-radius:12px;margin-bottom:18px;} .topbar-logo{height:28px;display:block;} .topbar-title{color:#fff;font-size:15px;font-weight:600;padding-left:16px;border-left:1px solid rgba(255,255,255,.25);} .export-bar{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--text-muted);} .export-bar button{border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;background:#1d3f72;color:#fff;} .busca-cidade{width:220px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;} .city-page{margin-bottom:36px;} .city-page h2{font-size:16px;color:var(--text);font-weight:700;margin:0 0 12px 2px;} .tech-row{display:flex;align-items:stretch;gap:10px;margin-bottom:10px;} .tech-name-card{flex:0 0 190px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;} .tech-name-card .nome{font-weight:600;font-size:14px;} .tech-name-card .setor{font-size:12px;color:var(--text-muted);margin-top:2px;} .tech-name-card.guest{opacity:.7;border-style:dashed;} .tech-name-card .tag-guest{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--temp-away-text);margin-top:4px;font-weight:600;} .tech-name-card .tag-dupla{font-size:11px;color:var(--text-muted);margin-top:4px;} .day-cards{display:flex;gap:8px;flex:1;} .day-card{flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:10px 6px;text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:0;} .day-card .label{font-size:12px;font-weight:700;} .day-card .sub{font-size:11px;margin-top:2px;line-height:1.3;} .day-card .sub.dupla-sub{font-style:italic;opacity:.85;} .day-card.manha{background:var(--manha-bg);color:var(--manha-text);} .day-card.noite{background:var(--noite-bg);color:var(--noite-text);} .day-card.folga{background:var(--folga-bg);color:var(--folga-text);} .day-card.atestado{background:var(--atestado-bg);color:var(--atestado-text);} .day-card.ferias{background:var(--ferias-bg);color:var(--ferias-text);} .day-card.temp-away{background:var(--temp-away-bg);color:var(--temp-away-text);} .day-card.temp-here{border-style:dashed;opacity:.65;} .day-card.temp-here.manha{background:var(--manha-bg);color:var(--manha-text);} .day-card.temp-here.noite{background:var(--noite-bg);color:var(--noite-text);} .day-card.empty{background:#fafbfc;color:var(--empty-text);} .day-card.feriado-day{box-shadow:inset 0 0 0 2px var(--ferias-text);} .week-header{display:flex;gap:8px;margin:0 0 8px 200px;} .week-header .wd{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;} .week-header .wd .num{display:block;font-size:13px;color:var(--text);margin-top:1px;} .week-header .wd.feriado{color:var(--ferias-text);} .week-header .feriado-tag{display:block;font-size:9px;font-weight:700;color:#fff;background:var(--ferias-text);border-radius:6px;padding:2px 5px;margin-bottom:3px;white-space:nowrap;} .legend{display:flex;gap:20px;align-items:center;margin-top:20px;font-size:13px;color:var(--text-muted);} .legend .item{display:flex;align-items:center;gap:6px;} .legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block;} .legend .dot.manha{background:var(--manha-text);} .legend .dot.noite{background:var(--noite-text);} @media print{.no-print{display:none !important;} body{padding:0;background:#fff;} .city-page{page-break-after:always;padding:12mm 14mm 0;} .city-page:last-of-type{page-break-after:auto;} @page{size:A4 landscape;margin:0;}}';
+  var EXPORT_CSS = `
+:root{
+  --bg:#eef1f6;
+  --surface:#ffffff;
+  --surface-sunken:#f7f8fb;
+  --border:#dfe4ec;
+  --text:#161d2b;
+  --text-muted:#6b768c;
+  --text-faint:#a8b0c0;
+  --accent:#173a68;
+  --accent-strong:#0b2140;
+  --accent-contrast:#ffffff;
+
+  --manha-bg:#fdf1de;   --manha-text:#a9590a;
+  --noite-bg:#eceafc;   --noite-text:#4433b0;
+  --folga-bg:#eef1f5;   --folga-text:#7d879b;
+  --atestado-bg:#e2f4f1;--atestado-text:#0d7a6c;
+  --ferias-bg:#fce7ec;  --ferias-text:#bd1550;
+  --temp-bg:#f2ecfd;    --temp-text:#7139c9;
+
+  --shadow:0 1px 2px rgba(20,30,50,.04), 0 6px 16px -8px rgba(20,30,50,.12);
+}
+
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0e1420;
+    --surface:#161d2c;
+    --surface-sunken:#111725;
+    --border:#28324a;
+    --text:#e8ecf5;
+    --text-muted:#93a0ba;
+    --text-faint:#4b5670;
+    --accent:#6f9bef;
+    --accent-strong:#a9c4fb;
+    --accent-contrast:#0b1420;
+
+    --manha-bg:rgba(217,142,45,.16); --manha-text:#f0b876;
+    --noite-bg:rgba(102,89,240,.2);  --noite-text:#bcb4ff;
+    --folga-bg:rgba(255,255,255,.05);--folga-text:#98a2ba;
+    --atestado-bg:rgba(20,166,148,.18);--atestado-text:#6be0cc;
+    --ferias-bg:rgba(217,49,101,.18);--ferias-text:#f793ae;
+    --temp-bg:rgba(139,92,246,.2);   --temp-text:#c9b3fb;
+
+    --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 20px -10px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0e1420;
+  --surface:#161d2c;
+  --surface-sunken:#111725;
+  --border:#28324a;
+  --text:#e8ecf5;
+  --text-muted:#93a0ba;
+  --text-faint:#4b5670;
+  --accent:#6f9bef;
+  --accent-strong:#a9c4fb;
+  --accent-contrast:#0b1420;
+
+  --manha-bg:rgba(217,142,45,.16); --manha-text:#f0b876;
+  --noite-bg:rgba(102,89,240,.2);  --noite-text:#bcb4ff;
+  --folga-bg:rgba(255,255,255,.05);--folga-text:#98a2ba;
+  --atestado-bg:rgba(20,166,148,.18);--atestado-text:#6be0cc;
+  --ferias-bg:rgba(217,49,101,.18);--ferias-text:#f793ae;
+  --temp-bg:rgba(139,92,246,.2);   --temp-text:#c9b3fb;
+
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 20px -10px rgba(0,0,0,.5);
+}
+
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:"IBM Plex Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  padding:22px 28px 48px;
+}
+h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
+
+.page-topbar{
+  display:flex;align-items:center;gap:16px;
+  background:linear-gradient(120deg,var(--accent-strong),var(--accent));
+  padding:14px 22px;border-radius:14px;margin-bottom:16px;
+  box-shadow:var(--shadow);
+}
+.topbar-logo{height:26px;display:block;filter:brightness(0) invert(1);opacity:.95;}
+.topbar-titles{display:flex;flex-direction:column;padding-left:16px;border-left:1px solid rgba(255,255,255,.25);}
+.topbar-title{color:#fff;font-family:"Barlow Condensed",sans-serif;font-size:19px;font-weight:700;letter-spacing:.01em;line-height:1.1;}
+.topbar-date{color:rgba(255,255,255,.75);font-size:12px;font-weight:500;margin-top:2px;}
+
+.export-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:10px 14px;margin-bottom:22px;box-shadow:var(--shadow);
+}
+.export-bar .hint{font-size:12px;color:var(--text-muted);display:flex;align-items:center;gap:6px;}
+.search-wrap{position:relative;}
+.search-wrap svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:var(--text-faint);}
+.busca-cidade{
+  width:220px;padding:8px 12px 8px 30px;border:1px solid var(--border);border-radius:8px;
+  font-size:13px;font-family:inherit;background:var(--surface-sunken);color:var(--text);
+}
+.busca-cidade:focus{outline:2px solid var(--accent);outline-offset:1px;}
+.export-bar button{
+  display:inline-flex;align-items:center;gap:7px;
+  border:none;border-radius:8px;padding:9px 16px;font-size:13px;font-weight:600;
+  cursor:pointer;background:var(--accent);color:var(--accent-contrast);font-family:inherit;
+}
+.export-bar button:hover{background:var(--accent-strong);}
+.export-bar button svg{width:14px;height:14px;}
+
+.city-page{margin-bottom:34px;}
+.city-heading{display:flex;align-items:baseline;gap:10px;margin:0 0 14px 2px;}
+.city-heading h2{font-size:22px;font-weight:700;margin:0;letter-spacing:.01em;}
+.city-heading .count{font-size:12px;color:var(--text-muted);background:var(--surface-sunken);border:1px solid var(--border);padding:2px 9px;border-radius:999px;font-weight:600;}
+
+.week-header{display:flex;gap:8px;margin:0 0 8px 200px;}
+.week-header .wd{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
+.week-header .wd .num{display:block;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--text);margin-top:2px;font-weight:600;}
+.week-header .wd.feriado{color:var(--ferias-text);}
+.week-header .feriado-tag{
+  display:inline-block;font-size:9px;font-weight:700;color:#fff;background:var(--ferias-text);
+  border-radius:6px;padding:2px 6px;margin-bottom:3px;white-space:nowrap;letter-spacing:.02em;
+}
+
+.rows{display:flex;flex-direction:column;gap:10px;}
+.tech-row{display:flex;align-items:stretch;gap:10px;}
+
+.tech-name-card{
+  flex:0 0 190px;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:11px 14px;display:flex;align-items:center;gap:10px;box-shadow:var(--shadow);
+}
+.avatar{
+  flex:0 0 34px;width:34px;height:34px;border-radius:50%;
+  background:var(--surface-sunken);color:var(--accent);border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:13px;letter-spacing:.02em;
+}
+.tech-name-card .info{min-width:0;}
+.tech-name-card .nome{font-weight:600;font-size:14px;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tech-name-card .setor{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.tech-name-card.guest{opacity:.75;border-style:dashed;}
+.tech-name-card .tag-guest{
+  font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--temp-text);
+  margin-top:3px;font-weight:700;
+}
+.tech-name-card .tag-dupla{font-size:10.5px;color:var(--text-muted);margin-top:3px;font-style:italic;}
+
+.day-cards{display:flex;gap:8px;flex:1;}
+.day-card{
+  flex:1;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:9px 8px;text-align:center;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;min-width:0;gap:2px;box-shadow:var(--shadow);
+}
+.day-card .label{
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  font-family:"IBM Plex Mono",monospace;font-size:12.5px;font-weight:600;font-variant-numeric:tabular-nums;
+}
+.day-card .label svg{width:12px;height:12px;flex:0 0 auto;}
+.day-card .sub{font-size:10.5px;margin-top:1px;line-height:1.3;opacity:.9;}
+.day-card .sub.dupla-sub{font-style:italic;}
+
+.day-card.manha{background:var(--manha-bg);color:var(--manha-text);border-color:transparent;}
+.day-card.noite{background:var(--noite-bg);color:var(--noite-text);border-color:transparent;}
+.day-card.folga{background:var(--folga-bg);color:var(--folga-text);border-color:transparent;}
+.day-card.atestado{background:var(--atestado-bg);color:var(--atestado-text);border-color:transparent;}
+.day-card.ferias{background:var(--ferias-bg);color:var(--ferias-text);border-color:transparent;}
+.day-card.temp-away{background:var(--temp-bg);color:var(--temp-text);border-color:transparent;}
+.day-card.temp-here{border-style:dashed;opacity:.7;background:var(--surface);}
+.day-card.temp-here.manha{background:var(--manha-bg);color:var(--manha-text);}
+.day-card.temp-here.noite{background:var(--noite-bg);color:var(--noite-text);}
+.day-card.empty{background:var(--surface-sunken);color:var(--text-faint);border-style:dashed;}
+.day-card.feriado-day{box-shadow:inset 0 0 0 2px var(--ferias-text);}
+
+.legend{
+  display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-top:22px;
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;
+  box-shadow:var(--shadow);
+}
+.legend .title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-right:4px;}
+.legend .item{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--text);}
+.legend .swatch{
+  width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;
+}
+.legend .swatch svg{width:11px;height:11px;}
+.legend .swatch.manha{background:var(--manha-bg);color:var(--manha-text);}
+.legend .swatch.noite{background:var(--noite-bg);color:var(--noite-text);}
+.legend .swatch.folga{background:var(--folga-bg);color:var(--folga-text);}
+.legend .swatch.atestado{background:var(--atestado-bg);color:var(--atestado-text);}
+.legend .swatch.ferias{background:var(--ferias-bg);color:var(--ferias-text);}
+.legend .swatch.temp{background:var(--temp-bg);color:var(--temp-text);}
+
+@media print{
+  .no-print{display:none !important;}
+  body{padding:0;background:#fff;}
+  .city-page{page-break-after:always;padding:10mm 12mm 0;}
+  .city-page:last-of-type{page-break-after:auto;}
+  .day-card,.tech-name-card,.legend,.page-topbar{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  @page{size:A4 landscape;margin:0;}
+}
+`;
 
   // ---------- Relógio ----------
   function tickClock(){
@@ -1320,6 +1519,31 @@
   function getLogoDataUri(){
     var img = document.querySelector(".topbar-logo");
     return img ? img.src : "";
+  }
+
+  var ICONE_BUSCA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
+  var ICONE_IMPRIMIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>';
+  var ICONES_STATUS = {
+    manha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>',
+    noite: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>',
+    folga: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>',
+    atestado: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 6v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V6z"></path><path d="M12 8v6M9 11h6"></path></svg>',
+    ferias: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21c4-8 12-8 16-16"></path><path d="M20 5c0 4-3 6-8 6"></path></svg>',
+    "temp-away": '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5M21 12H9"></path></svg>'
+  };
+
+  function iconeParaCls(cls){
+    var tokens = cls.split(/\s+/);
+    for(var i=0;i<tokens.length;i++){
+      if(ICONES_STATUS[tokens[i]]) return ICONES_STATUS[tokens[i]];
+    }
+    return "";
+  }
+
+  function getIniciais(nome){
+    var partes = nome.trim().split(/\s+/);
+    if(partes.length >= 2) return (partes[0][0] + partes[1][0]).toUpperCase();
+    return nome.slice(0,2).toUpperCase();
   }
 
   function gerarWeekHeaderHTML(diasIdx){
@@ -1339,54 +1563,84 @@
       var feriado = getFeriado(weekDates[idx]);
       var duplaSub = getDuplaSub(tech, dia, weekDates[idx], cell.cls);
       var cls = "day-card " + cell.cls + (feriado ? " feriado-day" : "");
-      return '<div class="' + cls + '"><div class="label">' + escapeHtml(cell.label) + '</div>' +
+      var icone = iconeParaCls(cell.cls);
+      return '<div class="' + cls + '"><div class="label">' + icone + escapeHtml(cell.label) + '</div>' +
         (cell.sub ? '<div class="sub">' + escapeHtml(cell.sub) + '</div>' : '') +
         (duplaSub ? '<div class="sub dupla-sub">' + escapeHtml(duplaSub) + '</div>' : '') + '</div>';
     }).join('');
     var duploDe = getParceiroDeQuem(tech);
     return '<div class="tech-row">' +
       '<div class="tech-name-card' + (isHome ? '' : ' guest') + '">' +
-        '<div class="nome">' + escapeHtml(tech.nome) + '</div>' +
-        '<div class="setor">' + escapeHtml(tech.setor) + '</div>' +
-        (isHome ? '' : '<div class="tag-guest">Temporário</div>') +
-        (duploDe ? '<div class="tag-dupla">+ ' + escapeHtml(duploDe.nome) + '</div>' : '') +
+        '<div class="avatar">' + escapeHtml(getIniciais(tech.nome)) + '</div>' +
+        '<div class="info">' +
+          '<div class="nome">' + escapeHtml(tech.nome) + '</div>' +
+          '<div class="setor">' + escapeHtml(tech.setor) + '</div>' +
+          (isHome ? '' : '<div class="tag-guest">Temporário</div>') +
+          (duploDe ? '<div class="tag-dupla">+ ' + escapeHtml(duploDe.nome) + '</div>' : '') +
+        '</div>' +
       '</div>' +
       '<div class="day-cards">' + cells + '</div>' +
     '</div>';
   }
 
-  function gerarPageTopbarHTML(logoUri){
-    return '<div class="page-topbar"><img class="topbar-logo" src="' + logoUri + '" alt="avança"><span class="topbar-title">Escala de Técnicos</span></div>';
+  function gerarPageTopbarHTML(logoUri, dataTxt){
+    return '<div class="page-topbar"><img class="topbar-logo" src="' + logoUri + '" alt="avança">' +
+      '<div class="topbar-titles"><span class="topbar-title">Escala de Técnicos</span>' +
+      '<span class="topbar-date">' + escapeHtml(dataTxt) + '</span></div></div>';
+  }
+
+  function gerarLegendaHTML(){
+    return '<div class="legend no-print">' +
+      '<span class="title">Legenda</span>' +
+      '<div class="item"><span class="swatch manha">' + ICONES_STATUS.manha + '</span>Manhã</div>' +
+      '<div class="item"><span class="swatch noite">' + ICONES_STATUS.noite + '</span>Noite</div>' +
+      '<div class="item"><span class="swatch folga">' + ICONES_STATUS.folga + '</span>Folga</div>' +
+      '<div class="item"><span class="swatch atestado">' + ICONES_STATUS.atestado + '</span>Atestado</div>' +
+      '<div class="item"><span class="swatch ferias">' + ICONES_STATUS.ferias + '</span>Férias</div>' +
+      '<div class="item"><span class="swatch temp">' + ICONES_STATUS["temp-away"] + '</span>Deslocado temporariamente</div>' +
+    '</div>';
   }
 
   function normalizarBusca(str){
     return String(str).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
 
-  function gerarSecaoCidadeHTML(cidade, logoUri, diasIdx){
+  function gerarSecaoCidadeHTML(cidade, logoUri, diasIdx, dataTxt){
     var grupo = techsForCidade(cidade);
-    if(grupo.home.length === 0 && grupo.guests.length === 0) return "";
+    var total = grupo.home.length + grupo.guests.length;
+    if(total === 0) return "";
     var rows = grupo.home.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx); }).join("") +
                grupo.guests.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx); }).join("");
-    return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' + gerarPageTopbarHTML(logoUri) + '<h2>Técnicos · ' + escapeHtml(cidade) + '</h2>' + gerarWeekHeaderHTML(diasIdx) + '<div class="rows">' + rows + '</div></section>';
+    var contagem = total === 1 ? "1 técnico" : total + " técnicos";
+    return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' +
+      gerarPageTopbarHTML(logoUri, dataTxt) +
+      '<div class="city-heading"><h2>' + escapeHtml(cidade) + '</h2><span class="count">' + contagem + '</span></div>' +
+      gerarWeekHeaderHTML(diasIdx) +
+      '<div class="rows">' + rows + '</div>' +
+      gerarLegendaHTML() +
+    '</section>';
   }
 
   function gerarHtmlExportacao(diasIdx){
     diasIdx = diasIdx || [0,1,2,3,4,5,6];
     var logoUri = getLogoDataUri();
-    var citiesHtml = CIDADES.map(function(c){ return gerarSecaoCidadeHTML(c, logoUri, diasIdx); }).join("");
     var periodoTxt = diasIdx.length === 1 ? formatDataLonga(DIAS[diasIdx[0]], weekDates[diasIdx[0]]) : formatPeriodo();
-    var rotulo = diasIdx.length === 1 ? "Dia" : "Período";
+    var citiesHtml = CIDADES.map(function(c){ return gerarSecaoCidadeHTML(c, logoUri, diasIdx, periodoTxt); }).join("");
     return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
       '<title>Escala de Técnicos — ' + escapeHtml(periodoTxt) + '</title>' +
+      '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap">' +
       '<style>' + EXPORT_CSS + '</style></head><body>' +
       '<div class="export-bar no-print">' +
-        '<span>' + rotulo + ': ' + escapeHtml(periodoTxt) + ' — uma cidade por folha ao imprimir</span>' +
-        '<input type="text" id="buscaCidade" class="busca-cidade" placeholder="Buscar cidade...">' +
-        '<button onclick="window.print()">Baixar PDF</button>' +
+        '<span class="hint">Uma cidade por folha ao imprimir · use a busca para localizar rapidamente uma cidade</span>' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+          '<div class="search-wrap">' + ICONE_BUSCA +
+            '<input type="text" id="buscaCidade" class="busca-cidade" placeholder="Buscar cidade…">' +
+          '</div>' +
+          '<button onclick="window.print()">' + ICONE_IMPRIMIR + 'Baixar PDF</button>' +
+        '</div>' +
       '</div>' +
       citiesHtml +
-      '<div class="legend no-print"><div class="item"><span class="dot manha"></span> Manhã</div><div class="item"><span class="dot noite"></span> Noite</div></div>' +
       '<script>' +
         'document.getElementById("buscaCidade").addEventListener("input", function(){' +
           'var termo = this.value.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");' +
