@@ -503,6 +503,11 @@
       </div>
     </div>
 
+    <div class="field">
+      <label>Dupla neste dia</label>
+      <select id="dayDupla"></select>
+    </div>
+
     <div class="toggle-row">
       <label for="dayFolga">Folga</label>
       <label class="switch">
@@ -674,6 +679,7 @@
       });
     }
     if(tech.dupla === undefined) tech.dupla = null;
+    if(!tech.excecoes) tech.excecoes = {};
     return tech;
   }
 
@@ -736,6 +742,7 @@
   var cidadeAtiva = "Todas";
   var currentTechId = null;
   var currentDia = null;
+  var currentDataIso = null;
   var pendingTempAllocs = null; // usado durante edição do modal de técnico
 
   function getTech(id){
@@ -743,7 +750,7 @@
     return null;
   }
 
-  // Técnico que escolheu este como sua dupla (lado "passivo" da parceria)
+  // Técnico que escolheu este como sua dupla (lado "passivo" da parceria) — vínculo permanente
   function getParceiroDeQuem(tech){
     for(var i=0;i<techs.length;i++){
       if(techs[i].dupla === tech.id) return techs[i];
@@ -751,27 +758,60 @@
     return null;
   }
 
+  // Retorna a configuração efetiva do dia: uma exceção específica daquela data, se
+  // existir, senão o padrão recorrente daquele dia da semana.
+  function getDiaData(tech, diaKey, dataIso){
+    var exc = tech.excecoes && tech.excecoes[dataIso];
+    return exc || tech.horarios[diaKey];
+  }
+
+  // Id da dupla efetiva do técnico numa data: usa a exceção daquele dia (dupla avulsa,
+  // que pode ser "ninguém") se houver, senão o vínculo permanente cadastrado no técnico.
+  function getDuplaIdEfetivo(tech, dataIso){
+    var exc = tech.excecoes && tech.excecoes[dataIso];
+    if(exc && Object.prototype.hasOwnProperty.call(exc, "duplaOverride")){
+      return exc.duplaOverride || null;
+    }
+    return tech.dupla || null;
+  }
+
+  // Técnico que, efetivamente (considerando a exceção do dia), escolheu este como parceiro numa data
+  function getParceiroEfetivoDeQuem(tech, dataIso){
+    for(var i=0;i<techs.length;i++){
+      if(techs[i].id !== tech.id && getDuplaIdEfetivo(techs[i], dataIso) === tech.id) return techs[i];
+    }
+    return null;
+  }
+
   // Texto de dupla/solo para exibir no card de dia, só quando o dia tem um horário de fato (não folga/atestado/férias/vazio).
-  // Lado ativo (quem escolheu a dupla) mostra "Em dupla com X" ou "Solo"; lado passivo (quem foi escolhido) só mostra "Solo"
-  // quando a dupla quebra naquele dia, ficando em silêncio nos dias em que a dupla está de fato junta.
+  // O principal (quem configurou a dupla, fixa ou avulsa naquele dia) mostra "Em dupla com X" por extenso — é ele quem
+  // responde por lançamentos de estoque, ordens de serviço etc. O auxiliar escolhido mostra só "Duplado", sem nome.
   function getDuplaSub(tech, dia, weekDate, cellCls){
     if(!/(^|\s)(manha|noite)(\s|$)/.test(cellCls)) return null;
 
-    var ativo = !!tech.dupla;
-    var parceiro = ativo ? getTech(tech.dupla) : getParceiroDeQuem(tech);
-    if(!parceiro) return null;
+    var dataIso = isoDate(weekDate);
+    var parceiroId = getDuplaIdEfetivo(tech, dataIso);
 
-    var parceiroAusente = (parceiro.status === "ferias" && dateInRange(weekDate, parceiro.feriasInicio, parceiro.feriasFim)) ||
-      parceiro.horarios[dia].folga || parceiro.horarios[dia].atestado;
+    if(parceiroId){
+      var parceiro = getTech(parceiroId);
+      if(!parceiro) return null;
+      var parceiroDia = getDiaData(parceiro, dia, dataIso);
+      var parceiroAusente = (parceiro.status === "ferias" && dateInRange(weekDate, parceiro.feriasInicio, parceiro.feriasFim)) ||
+        parceiroDia.folga || parceiroDia.atestado;
+      return parceiroAusente ? "Solo" : ("Em dupla com " + parceiro.nome);
+    }
 
-    if(parceiroAusente) return "Solo";
-    return ativo ? ("Em dupla com " + parceiro.nome) : null;
+    var principal = getParceiroEfetivoDeQuem(tech, dataIso);
+    if(!principal) return null;
+    var principalDia = getDiaData(principal, dia, dataIso);
+    var principalAusente = (principal.status === "ferias" && dateInRange(weekDate, principal.feriasInicio, principal.feriasFim)) ||
+      principalDia.folga || principalDia.atestado;
+    return principalAusente ? "Solo" : "Duplado";
   }
 
   // Horário efetivo do dia: usa o valor próprio se "custom", senão o padrão do técnico
-  function horarioEfetivo(tech, diaKey){
-    var d = tech.horarios[diaKey];
-    if(d.custom) return { inicio: d.inicio, fim: d.fim };
+  function horarioEfetivo(tech, diaData){
+    if(diaData.custom) return { inicio: diaData.inicio, fim: diaData.fim };
     return { inicio: tech.horarioPadrao.inicio, fim: tech.horarioPadrao.fim };
   }
 
@@ -784,6 +824,7 @@
   // Retorna { cls, label, sub } para o dia de um técnico, no contexto da cidade sendo exibida
   function getCell(tech, diaKey, viewingCidade, isHome){
     var weekDate = weekDates[DIAS.indexOf(diaKey)];
+    var diaData = getDiaData(tech, diaKey, isoDate(weekDate));
 
     if(isHome){
       if(tech.status === "ferias" && dateInRange(weekDate, tech.feriasInicio, tech.feriasFim)){
@@ -793,14 +834,13 @@
         return a.cidade !== viewingCidade && a.dias.indexOf(diaKey) !== -1;
       });
       if(tempElsewhere){
-        var hh = horarioEfetivo(tech, diaKey);
+        var hh = horarioEfetivo(tech, diaData);
         var sub = (hh.inicio && hh.fim) ? (hh.inicio + "–" + hh.fim) : "";
         return { cls: "temp-away", label: "Atuação em " + tempElsewhere.cidade, sub: sub };
       }
-      var flags = tech.horarios[diaKey];
-      if(flags.folga) return { cls: "folga", label: "Folga" };
-      if(flags.atestado) return { cls: "atestado", label: "Atestado" };
-      var horario = horarioEfetivo(tech, diaKey);
+      if(diaData.folga) return { cls: "folga", label: "Folga" };
+      if(diaData.atestado) return { cls: "atestado", label: "Atestado" };
+      var horario = horarioEfetivo(tech, diaData);
       if(!horario.inicio || !horario.fim) return { cls: "empty", label: "—" };
       return { cls: shiftClass(horario), label: horario.inicio + "–" + horario.fim };
     } else {
@@ -812,18 +852,29 @@
         return a.cidade === viewingCidade && a.dias.indexOf(diaKey) !== -1;
       });
       if(!temp) return { cls: "empty", label: "—" };
-      var h2 = horarioEfetivo(tech, diaKey);
+      var h2 = horarioEfetivo(tech, diaData);
       if(!h2.inicio || !h2.fim) return { cls: "empty", label: "—" };
       return { cls: "temp-here " + shiftClass(h2), label: h2.inicio + "–" + h2.fim };
     }
   }
 
+  // Técnico foi auxiliar (duplado) de alguém em pelo menos um dia da semana exibida, na cidade dele
+  function techEhAuxiliarNaSemana(tech, cidade){
+    for(var idx=0; idx<DIAS.length; idx++){
+      var cell = getCell(tech, DIAS[idx], cidade, true);
+      if(getDuplaSub(tech, DIAS[idx], weekDates[idx], cell.cls) === "Duplado") return true;
+    }
+    return false;
+  }
+
   function techsForCidade(cidade){
     var home = techs.filter(function(t){ return t.cidade === cidade; });
+    var titulares = home.filter(function(t){ return !techEhAuxiliarNaSemana(t, cidade); });
+    var duplados = home.filter(function(t){ return techEhAuxiliarNaSemana(t, cidade); });
     var guests = techs.filter(function(t){
       return t.cidade !== cidade && (t.alocacoesTemporarias||[]).some(function(a){ return a.cidade === cidade; });
     });
-    return { home: home, guests: guests };
+    return { home: titulares.concat(duplados), guests: guests };
   }
 
   function renderCityTabs(){
@@ -880,7 +931,7 @@
       card.innerHTML = '<div class="label">' + cell.label + '</div>' +
         (cell.sub ? '<div class="sub">' + cell.sub + '</div>' : "") +
         (duplaSub ? '<div class="sub dupla-sub">' + duplaSub + '</div>' : "");
-      card.addEventListener("click", function(){ openDayModal(tech.id, dia); });
+      card.addEventListener("click", function(){ openDayModal(tech.id, dia, isoDate(weekDates[idx])); });
       dayCards.appendChild(card);
     });
     row.appendChild(dayCards);
@@ -1074,6 +1125,7 @@
       feriasFim: null,
       horarioPadrao: { inicio: "07:00", fim: "15:00" },
       horarios: novoDiasVazios(),
+      excecoes: {},
       alocacoesTemporarias: [],
       dupla: null
     };
@@ -1132,18 +1184,53 @@
     }
   }
 
-  function openDayModal(techId, dia){
+  function formatDataCurta(dataIso){
+    var partes = dataIso.split("-");
+    return partes[2] + "/" + partes[1];
+  }
+
+  function fillDayDuplaSelect(select, tech, dataIso){
+    select.innerHTML = "";
+    var optPadrao = document.createElement("option");
+    optPadrao.value = "__padrao__";
+    var permanente = tech.dupla ? getTech(tech.dupla) : null;
+    optPadrao.textContent = "Padrão (" + (permanente ? permanente.nome : "sozinho") + ")";
+    select.appendChild(optPadrao);
+
+    var optNone = document.createElement("option");
+    optNone.value = "";
+    optNone.textContent = "Sozinho só neste dia";
+    select.appendChild(optNone);
+
+    techs.filter(function(t){ return t.id !== tech.id; })
+      .slice()
+      .sort(function(a, b){ return a.nome.localeCompare(b.nome); })
+      .forEach(function(t){
+        var opt = document.createElement("option");
+        opt.value = t.id;
+        opt.textContent = t.nome + " — " + t.cidade;
+        select.appendChild(opt);
+      });
+
+    var exc = tech.excecoes && tech.excecoes[dataIso];
+    var valorAtual = (exc && Object.prototype.hasOwnProperty.call(exc, "duplaOverride")) ? (exc.duplaOverride || "") : "__padrao__";
+    select.value = valorAtual;
+  }
+
+  function openDayModal(techId, dia, dataIso){
     var tech = getTech(techId);
     if(!tech) return;
     currentTechId = techId;
     currentDia = dia;
-    var horario = tech.horarios[dia];
-    document.getElementById("dayModalTitle").textContent = tech.nome + " — " + DIA_LABEL[dia];
+    currentDataIso = dataIso;
+    var horario = getDiaData(tech, dia, dataIso);
+    document.getElementById("dayModalTitle").textContent = tech.nome + " — " + DIA_LABEL[dia] + ", " + formatDataCurta(dataIso);
     document.getElementById("dayCustom").checked = !!horario.custom;
     document.getElementById("dayInicio").value = horario.custom ? (horario.inicio || "") : (tech.horarioPadrao.inicio || "");
     document.getElementById("dayFim").value = horario.custom ? (horario.fim || "") : (tech.horarioPadrao.fim || "");
     document.getElementById("dayFolga").checked = !!horario.folga;
     document.getElementById("dayAtestado").checked = !!horario.atestado;
+    fillDayDuplaSelect(document.getElementById("dayDupla"), tech, dataIso);
     updateDayInputsState();
     document.getElementById("dayModal").classList.remove("hidden");
   }
@@ -1152,6 +1239,7 @@
     document.getElementById("dayModal").classList.add("hidden");
     currentTechId = null;
     currentDia = null;
+    currentDataIso = null;
   }
 
   document.getElementById("dayCustom").addEventListener("change", updateDayInputsState);
@@ -1160,15 +1248,21 @@
 
   document.getElementById("daySaveBtn").addEventListener("click", function(){
     var tech = getTech(currentTechId);
-    if(!tech || !currentDia) return;
+    if(!tech || !currentDia || !currentDataIso) return;
     var custom = document.getElementById("dayCustom").checked;
-    tech.horarios[currentDia] = {
+    var duplaSelVal = document.getElementById("dayDupla").value;
+    var novaExcecao = {
       custom: custom,
       inicio: custom ? document.getElementById("dayInicio").value : "",
       fim: custom ? document.getElementById("dayFim").value : "",
       folga: document.getElementById("dayFolga").checked,
       atestado: document.getElementById("dayAtestado").checked
     };
+    if(duplaSelVal !== "__padrao__"){
+      novaExcecao.duplaOverride = duplaSelVal;
+    }
+    if(!tech.excecoes) tech.excecoes = {};
+    tech.excecoes[currentDataIso] = novaExcecao;
     saveData();
     closeDayModal();
     render();
@@ -1182,7 +1276,7 @@
     });
   });
 
-  var EXPORT_CSS = ':root{--bg:#f4f6f9;--card-bg:#ffffff;--border:#e2e6ec;--text:#1f2530;--text-muted:#7a8494;--manha-bg:#dbeafe;--manha-text:#1e40af;--noite-bg:#d1fae5;--noite-text:#065f46;--folga-bg:#eef1f5;--folga-text:#97a1b0;--atestado-bg:#fef3c7;--atestado-text:#92400e;--ferias-bg:#fee2e2;--ferias-text:#b91c1c;--temp-away-bg:#ede9fe;--temp-away-text:#5b21b6;--empty-text:#c3cad4;} * {box-sizing:border-box;} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);padding:24px 32px 48px;} .page-topbar{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,#0c2647,#17427a);padding:12px 24px;border-radius:12px;margin-bottom:18px;} .topbar-logo{height:28px;display:block;} .topbar-title{color:#fff;font-size:15px;font-weight:600;padding-left:16px;border-left:1px solid rgba(255,255,255,.25);} .export-bar{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--text-muted);} .export-bar button{border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;background:#1d3f72;color:#fff;} .city-page{margin-bottom:36px;} .city-page h2{font-size:16px;color:var(--text);font-weight:700;margin:0 0 12px 2px;} .tech-row{display:flex;align-items:stretch;gap:10px;margin-bottom:10px;} .tech-name-card{flex:0 0 190px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;} .tech-name-card .nome{font-weight:600;font-size:14px;} .tech-name-card .setor{font-size:12px;color:var(--text-muted);margin-top:2px;} .tech-name-card.guest{opacity:.7;border-style:dashed;} .tech-name-card .tag-guest{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--temp-away-text);margin-top:4px;font-weight:600;} .tech-name-card .tag-dupla{font-size:11px;color:var(--text-muted);margin-top:4px;} .day-cards{display:flex;gap:8px;flex:1;} .day-card{flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:10px 6px;text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:0;} .day-card .label{font-size:12px;font-weight:700;} .day-card .sub{font-size:11px;margin-top:2px;line-height:1.3;} .day-card .sub.dupla-sub{font-style:italic;opacity:.85;} .day-card.manha{background:var(--manha-bg);color:var(--manha-text);} .day-card.noite{background:var(--noite-bg);color:var(--noite-text);} .day-card.folga{background:var(--folga-bg);color:var(--folga-text);} .day-card.atestado{background:var(--atestado-bg);color:var(--atestado-text);} .day-card.ferias{background:var(--ferias-bg);color:var(--ferias-text);} .day-card.temp-away{background:var(--temp-away-bg);color:var(--temp-away-text);} .day-card.temp-here{border-style:dashed;opacity:.65;} .day-card.temp-here.manha{background:var(--manha-bg);color:var(--manha-text);} .day-card.temp-here.noite{background:var(--noite-bg);color:var(--noite-text);} .day-card.empty{background:#fafbfc;color:var(--empty-text);} .day-card.feriado-day{box-shadow:inset 0 0 0 2px var(--ferias-text);} .week-header{display:flex;gap:8px;margin:0 0 8px 200px;} .week-header .wd{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;} .week-header .wd .num{display:block;font-size:13px;color:var(--text);margin-top:1px;} .week-header .wd.feriado{color:var(--ferias-text);} .week-header .feriado-tag{display:block;font-size:9px;font-weight:700;color:#fff;background:var(--ferias-text);border-radius:6px;padding:2px 5px;margin-bottom:3px;white-space:nowrap;} .legend{display:flex;gap:20px;align-items:center;margin-top:20px;font-size:13px;color:var(--text-muted);} .legend .item{display:flex;align-items:center;gap:6px;} .legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block;} .legend .dot.manha{background:var(--manha-text);} .legend .dot.noite{background:var(--noite-text);} @media print{.no-print{display:none !important;} body{padding:0;background:#fff;} .city-page{page-break-after:always;padding:12mm 14mm 0;} .city-page:last-of-type{page-break-after:auto;} @page{size:A4 landscape;margin:0;}}';
+  var EXPORT_CSS = ':root{--bg:#f4f6f9;--card-bg:#ffffff;--border:#e2e6ec;--text:#1f2530;--text-muted:#7a8494;--manha-bg:#dbeafe;--manha-text:#1e40af;--noite-bg:#d1fae5;--noite-text:#065f46;--folga-bg:#eef1f5;--folga-text:#97a1b0;--atestado-bg:#fef3c7;--atestado-text:#92400e;--ferias-bg:#fee2e2;--ferias-text:#b91c1c;--temp-away-bg:#ede9fe;--temp-away-text:#5b21b6;--empty-text:#c3cad4;} * {box-sizing:border-box;} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;background:var(--bg);color:var(--text);padding:24px 32px 48px;} .page-topbar{display:flex;align-items:center;gap:16px;background:linear-gradient(90deg,#0c2647,#17427a);padding:12px 24px;border-radius:12px;margin-bottom:18px;} .topbar-logo{height:28px;display:block;} .topbar-title{color:#fff;font-size:15px;font-weight:600;padding-left:16px;border-left:1px solid rgba(255,255,255,.25);} .export-bar{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;font-size:13px;color:var(--text-muted);} .export-bar button{border:none;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;background:#1d3f72;color:#fff;} .busca-cidade{width:220px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;} .city-page{margin-bottom:36px;} .city-page h2{font-size:16px;color:var(--text);font-weight:700;margin:0 0 12px 2px;} .tech-row{display:flex;align-items:stretch;gap:10px;margin-bottom:10px;} .tech-name-card{flex:0 0 190px;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;justify-content:center;} .tech-name-card .nome{font-weight:600;font-size:14px;} .tech-name-card .setor{font-size:12px;color:var(--text-muted);margin-top:2px;} .tech-name-card.guest{opacity:.7;border-style:dashed;} .tech-name-card .tag-guest{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--temp-away-text);margin-top:4px;font-weight:600;} .tech-name-card .tag-dupla{font-size:11px;color:var(--text-muted);margin-top:4px;} .day-cards{display:flex;gap:8px;flex:1;} .day-card{flex:1;background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:10px 6px;text-align:center;display:flex;flex-direction:column;justify-content:center;min-width:0;} .day-card .label{font-size:12px;font-weight:700;} .day-card .sub{font-size:11px;margin-top:2px;line-height:1.3;} .day-card .sub.dupla-sub{font-style:italic;opacity:.85;} .day-card.manha{background:var(--manha-bg);color:var(--manha-text);} .day-card.noite{background:var(--noite-bg);color:var(--noite-text);} .day-card.folga{background:var(--folga-bg);color:var(--folga-text);} .day-card.atestado{background:var(--atestado-bg);color:var(--atestado-text);} .day-card.ferias{background:var(--ferias-bg);color:var(--ferias-text);} .day-card.temp-away{background:var(--temp-away-bg);color:var(--temp-away-text);} .day-card.temp-here{border-style:dashed;opacity:.65;} .day-card.temp-here.manha{background:var(--manha-bg);color:var(--manha-text);} .day-card.temp-here.noite{background:var(--noite-bg);color:var(--noite-text);} .day-card.empty{background:#fafbfc;color:var(--empty-text);} .day-card.feriado-day{box-shadow:inset 0 0 0 2px var(--ferias-text);} .week-header{display:flex;gap:8px;margin:0 0 8px 200px;} .week-header .wd{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;} .week-header .wd .num{display:block;font-size:13px;color:var(--text);margin-top:1px;} .week-header .wd.feriado{color:var(--ferias-text);} .week-header .feriado-tag{display:block;font-size:9px;font-weight:700;color:#fff;background:var(--ferias-text);border-radius:6px;padding:2px 5px;margin-bottom:3px;white-space:nowrap;} .legend{display:flex;gap:20px;align-items:center;margin-top:20px;font-size:13px;color:var(--text-muted);} .legend .item{display:flex;align-items:center;gap:6px;} .legend .dot{width:10px;height:10px;border-radius:50%;display:inline-block;} .legend .dot.manha{background:var(--manha-text);} .legend .dot.noite{background:var(--noite-text);} @media print{.no-print{display:none !important;} body{padding:0;background:#fff;} .city-page{page-break-after:always;padding:12mm 14mm 0;} .city-page:last-of-type{page-break-after:auto;} @page{size:A4 landscape;margin:0;}}';
 
   // ---------- Relógio ----------
   function tickClock(){
@@ -1234,12 +1328,16 @@
     return '<div class="page-topbar"><img class="topbar-logo" src="' + logoUri + '" alt="avança"><span class="topbar-title">Escala de Técnicos</span></div>';
   }
 
+  function normalizarBusca(str){
+    return String(str).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  }
+
   function gerarSecaoCidadeHTML(cidade, logoUri){
     var grupo = techsForCidade(cidade);
     if(grupo.home.length === 0 && grupo.guests.length === 0) return "";
     var rows = grupo.home.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true); }).join("") +
                grupo.guests.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false); }).join("");
-    return '<section class="city-page">' + gerarPageTopbarHTML(logoUri) + '<h2>Técnicos · ' + escapeHtml(cidade) + '</h2>' + gerarWeekHeaderHTML() + '<div class="rows">' + rows + '</div></section>';
+    return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' + gerarPageTopbarHTML(logoUri) + '<h2>Técnicos · ' + escapeHtml(cidade) + '</h2>' + gerarWeekHeaderHTML() + '<div class="rows">' + rows + '</div></section>';
   }
 
   function gerarHtmlExportacao(){
@@ -1249,9 +1347,22 @@
     return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
       '<title>Escala de Técnicos — ' + escapeHtml(periodoTxt) + '</title>' +
       '<style>' + EXPORT_CSS + '</style></head><body>' +
-      '<div class="export-bar no-print"><span>Período: ' + escapeHtml(periodoTxt) + ' — uma cidade por folha ao imprimir</span><button onclick="window.print()">Baixar PDF</button></div>' +
+      '<div class="export-bar no-print">' +
+        '<span>Período: ' + escapeHtml(periodoTxt) + ' — uma cidade por folha ao imprimir</span>' +
+        '<input type="text" id="buscaCidade" class="busca-cidade" placeholder="Buscar cidade...">' +
+        '<button onclick="window.print()">Baixar PDF</button>' +
+      '</div>' +
       citiesHtml +
       '<div class="legend no-print"><div class="item"><span class="dot manha"></span> Manhã</div><div class="item"><span class="dot noite"></span> Noite</div></div>' +
+      '<script>' +
+        'document.getElementById("buscaCidade").addEventListener("input", function(){' +
+          'var termo = this.value.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");' +
+          'document.querySelectorAll(".city-page").forEach(function(sec){' +
+            'var nome = sec.getAttribute("data-cidade") || "";' +
+            'sec.style.display = nome.indexOf(termo) !== -1 ? "" : "none";' +
+          '});' +
+        '});' +
+      '<\/script>' +
       '</body></html>';
   }
 
