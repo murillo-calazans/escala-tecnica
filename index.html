@@ -438,6 +438,15 @@
       </label>
     </div>
 
+    <div class="toggle-row">
+      <label for="techOutrasPadrao">Outras atividades por padrão (todos os dias)</label>
+      <label class="switch">
+        <input type="checkbox" id="techOutrasPadrao">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <p style="font-size:11px; color:var(--text-muted); margin:-8px 0 14px;">Para técnicos que não fazem ordem sempre. O card do dia mostra "Outras atividades" toda semana; nos dias em que ele fizer uma ordem, edite só aquele dia no card correspondente.</p>
+
     <div class="field">
       <label>Status</label>
       <select id="techStatus">
@@ -1101,6 +1110,7 @@
     document.getElementById("techPadraoInicio").value = tech.horarioPadrao.inicio || "";
     document.getElementById("techPadraoFim").value = tech.horarioPadrao.fim || "";
     document.getElementById("techResetDias").checked = false;
+    document.getElementById("techOutrasPadrao").checked = DIAS.every(function(dia){ return !!tech.horarios[dia].outras; });
     fillCidadeSelect(document.getElementById("techCidade"), tech.cidade);
     document.getElementById("techSetor").value = tech.setor;
     fillDuplaSelect(document.getElementById("techDupla"), tech.id, tech.dupla);
@@ -1194,6 +1204,15 @@
         d.fim = "";
       });
     }
+    var outrasPadrao = document.getElementById("techOutrasPadrao").checked;
+    DIAS.forEach(function(dia){
+      var d = tech.horarios[dia];
+      d.outras = outrasPadrao;
+      if(outrasPadrao){
+        d.folga = false;
+        d.atestado = false;
+      }
+    });
     tech.cidade = document.getElementById("techCidade").value;
     tech.setor = document.getElementById("techSetor").value;
     tech.dupla = document.getElementById("techDupla").value || null;
