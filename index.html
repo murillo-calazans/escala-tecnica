@@ -373,7 +373,8 @@
   <span class="periodo" id="periodoLabel"></span>
   <button class="btn btn-secondary" id="semanaProximaBtn" title="Próxima semana">▶</button>
   <button class="btn btn-secondary" id="semanaHojeBtn">Semana atual</button>
-  <button class="btn btn-secondary" id="exportarBtn" style="margin-left:auto;">⬇ Exportar escala</button>
+  <select id="exportDiaSelect" class="btn btn-secondary" style="margin-left:auto;"></select>
+  <button class="btn btn-secondary" id="exportarBtn">⬇ Exportar escala</button>
   <button class="btn btn-primary" id="novoTecnicoBtn">+ Novo técnico</button>
 </header>
 
@@ -730,6 +731,12 @@
     return ini.getDate() + " de " + MESES[ini.getMonth()] + " – " + fim.getDate() + " de " + MESES[fim.getMonth()] + " de " + fim.getFullYear();
   }
 
+  var DIA_SEMANA_EXTENSO = { seg:"Segunda-feira", ter:"Terça-feira", qua:"Quarta-feira", qui:"Quinta-feira", sex:"Sexta-feira", sab:"Sábado", dom:"Domingo" };
+
+  function formatDataLonga(diaKey, data){
+    return DIA_SEMANA_EXTENSO[diaKey] + ", " + data.getDate() + " de " + MESES[data.getMonth()] + " de " + data.getFullYear();
+  }
+
   function dateInRange(date, startStr, endStr){
     if(!startStr || !endStr) return false;
     var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -765,48 +772,52 @@
     return exc || tech.horarios[diaKey];
   }
 
-  // Id da dupla efetiva do técnico numa data: usa a exceção daquele dia (dupla avulsa,
-  // que pode ser "ninguém") se houver, senão o vínculo permanente cadastrado no técnico.
-  function getDuplaIdEfetivo(tech, dataIso){
+  // Papel e parceiro efetivo do técnico numa data, considerando exceção avulsa daquele dia.
+  // Dupla AVULSA (configurada no próprio card do técnico, só pra aquele dia): quem configura é o PRINCIPAL —
+  // é ele quem decidiu levar um ajudante naquele dia. O escolhido é o AUXILIAR.
+  // Dupla FIXA (campo "dupla" no cadastro do técnico): é o oposto — quem tem o campo configurado no cadastro
+  // é o AUXILIAR (cadastrado como par de outra pessoa), e quem foi escolhido é o PRINCIPAL, responsável por
+  // lançamentos de estoque, ordens de serviço etc.
+  function getDuplaInfo(tech, dataIso){
     var exc = tech.excecoes && tech.excecoes[dataIso];
     if(exc && Object.prototype.hasOwnProperty.call(exc, "duplaOverride")){
-      return exc.duplaOverride || null;
+      if(!exc.duplaOverride) return null;
+      var parceiroAvulsa = getTech(exc.duplaOverride);
+      return parceiroAvulsa ? { papel: "principal", parceiro: parceiroAvulsa } : null;
     }
-    return tech.dupla || null;
-  }
-
-  // Técnico que, efetivamente (considerando a exceção do dia), escolheu este como parceiro numa data
-  function getParceiroEfetivoDeQuem(tech, dataIso){
+    if(tech.dupla){
+      var parceiroFixo = getTech(tech.dupla);
+      return parceiroFixo ? { papel: "auxiliar", parceiro: parceiroFixo } : null;
+    }
     for(var i=0;i<techs.length;i++){
-      if(techs[i].id !== tech.id && getDuplaIdEfetivo(techs[i], dataIso) === tech.id) return techs[i];
+      var outro = techs[i];
+      if(outro.id === tech.id) continue;
+      var outroExc = outro.excecoes && outro.excecoes[dataIso];
+      if(outroExc && Object.prototype.hasOwnProperty.call(outroExc, "duplaOverride")){
+        if(outroExc.duplaOverride === tech.id) return { papel: "auxiliar", parceiro: outro };
+        continue;
+      }
+      if(outro.dupla === tech.id) return { papel: "principal", parceiro: outro };
     }
     return null;
   }
 
   // Texto de dupla/solo para exibir no card de dia, só quando o dia tem um horário de fato (não folga/atestado/férias/vazio).
-  // O principal (quem configurou a dupla, fixa ou avulsa naquele dia) mostra "Em dupla com X" por extenso — é ele quem
-  // responde por lançamentos de estoque, ordens de serviço etc. O auxiliar escolhido mostra só "Duplado", sem nome.
+  // O principal mostra "Em dupla com X" por extenso; o auxiliar mostra só "Duplado", sem nome. "Solo" quando o
+  // parceiro falta naquele dia.
   function getDuplaSub(tech, dia, weekDate, cellCls){
     if(!/(^|\s)(manha|noite)(\s|$)/.test(cellCls)) return null;
 
     var dataIso = isoDate(weekDate);
-    var parceiroId = getDuplaIdEfetivo(tech, dataIso);
+    var info = getDuplaInfo(tech, dataIso);
+    if(!info) return null;
 
-    if(parceiroId){
-      var parceiro = getTech(parceiroId);
-      if(!parceiro) return null;
-      var parceiroDia = getDiaData(parceiro, dia, dataIso);
-      var parceiroAusente = (parceiro.status === "ferias" && dateInRange(weekDate, parceiro.feriasInicio, parceiro.feriasFim)) ||
-        parceiroDia.folga || parceiroDia.atestado;
-      return parceiroAusente ? "Solo" : ("Em dupla com " + parceiro.nome);
-    }
+    var parceiroDia = getDiaData(info.parceiro, dia, dataIso);
+    var parceiroAusente = (info.parceiro.status === "ferias" && dateInRange(weekDate, info.parceiro.feriasInicio, info.parceiro.feriasFim)) ||
+      parceiroDia.folga || parceiroDia.atestado;
 
-    var principal = getParceiroEfetivoDeQuem(tech, dataIso);
-    if(!principal) return null;
-    var principalDia = getDiaData(principal, dia, dataIso);
-    var principalAusente = (principal.status === "ferias" && dateInRange(weekDate, principal.feriasInicio, principal.feriasFim)) ||
-      principalDia.folga || principalDia.atestado;
-    return principalAusente ? "Solo" : "Duplado";
+    if(parceiroAusente) return "Solo";
+    return info.papel === "principal" ? ("Em dupla com " + info.parceiro.nome) : "Duplado";
   }
 
   // Horário efetivo do dia: usa o valor próprio se "custom", senão o padrão do técnico
@@ -957,10 +968,28 @@
     container.appendChild(section);
   }
 
+  function populateExportDiaSelect(){
+    var sel = document.getElementById("exportDiaSelect");
+    var valorAtual = sel.options.length ? sel.value : "semana";
+    sel.innerHTML = "";
+    var optSemana = document.createElement("option");
+    optSemana.value = "semana";
+    optSemana.textContent = "Semana toda";
+    sel.appendChild(optSemana);
+    DIAS.forEach(function(dia, idx){
+      var opt = document.createElement("option");
+      opt.value = String(idx);
+      opt.textContent = "Só " + DIA_LABEL[dia] + " " + pad2(weekDates[idx].getDate()) + "/" + pad2(weekDates[idx].getMonth()+1);
+      sel.appendChild(opt);
+    });
+    sel.value = valorAtual;
+  }
+
   function render(){
     computeWeek();
     document.getElementById("periodoLabel").textContent = formatPeriodo();
     document.getElementById("semanaHojeBtn").style.display = (weekOffset === 0) ? "none" : "inline-block";
+    populateExportDiaSelect();
     renderCityTabs();
 
     var container = document.getElementById("scheduleContainer");
@@ -1293,8 +1322,9 @@
     return img ? img.src : "";
   }
 
-  function gerarWeekHeaderHTML(){
-    return '<div class="week-header">' + DIAS.map(function(dia, idx){
+  function gerarWeekHeaderHTML(diasIdx){
+    return '<div class="week-header">' + diasIdx.map(function(idx){
+      var dia = DIAS[idx];
       var feriado = getFeriado(weekDates[idx]);
       return '<div class="wd' + (feriado ? ' feriado' : '') + '">' +
         (feriado ? '<span class="feriado-tag">Feriado · ' + escapeHtml(feriado) + '</span>' : '') +
@@ -1302,8 +1332,9 @@
     }).join('') + '</div>';
   }
 
-  function gerarLinhaTecnicoHTML(tech, cidade, isHome){
-    var cells = DIAS.map(function(dia, idx){
+  function gerarLinhaTecnicoHTML(tech, cidade, isHome, diasIdx){
+    var cells = diasIdx.map(function(idx){
+      var dia = DIAS[idx];
       var cell = getCell(tech, dia, cidade, isHome);
       var feriado = getFeriado(weekDates[idx]);
       var duplaSub = getDuplaSub(tech, dia, weekDates[idx], cell.cls);
@@ -1332,23 +1363,25 @@
     return String(str).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
 
-  function gerarSecaoCidadeHTML(cidade, logoUri){
+  function gerarSecaoCidadeHTML(cidade, logoUri, diasIdx){
     var grupo = techsForCidade(cidade);
     if(grupo.home.length === 0 && grupo.guests.length === 0) return "";
-    var rows = grupo.home.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true); }).join("") +
-               grupo.guests.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false); }).join("");
-    return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' + gerarPageTopbarHTML(logoUri) + '<h2>Técnicos · ' + escapeHtml(cidade) + '</h2>' + gerarWeekHeaderHTML() + '<div class="rows">' + rows + '</div></section>';
+    var rows = grupo.home.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx); }).join("") +
+               grupo.guests.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx); }).join("");
+    return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' + gerarPageTopbarHTML(logoUri) + '<h2>Técnicos · ' + escapeHtml(cidade) + '</h2>' + gerarWeekHeaderHTML(diasIdx) + '<div class="rows">' + rows + '</div></section>';
   }
 
-  function gerarHtmlExportacao(){
+  function gerarHtmlExportacao(diasIdx){
+    diasIdx = diasIdx || [0,1,2,3,4,5,6];
     var logoUri = getLogoDataUri();
-    var citiesHtml = CIDADES.map(function(c){ return gerarSecaoCidadeHTML(c, logoUri); }).join("");
-    var periodoTxt = formatPeriodo();
+    var citiesHtml = CIDADES.map(function(c){ return gerarSecaoCidadeHTML(c, logoUri, diasIdx); }).join("");
+    var periodoTxt = diasIdx.length === 1 ? formatDataLonga(DIAS[diasIdx[0]], weekDates[diasIdx[0]]) : formatPeriodo();
+    var rotulo = diasIdx.length === 1 ? "Dia" : "Período";
     return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
       '<title>Escala de Técnicos — ' + escapeHtml(periodoTxt) + '</title>' +
       '<style>' + EXPORT_CSS + '</style></head><body>' +
       '<div class="export-bar no-print">' +
-        '<span>Período: ' + escapeHtml(periodoTxt) + ' — uma cidade por folha ao imprimir</span>' +
+        '<span>' + rotulo + ': ' + escapeHtml(periodoTxt) + ' — uma cidade por folha ao imprimir</span>' +
         '<input type="text" id="buscaCidade" class="busca-cidade" placeholder="Buscar cidade...">' +
         '<button onclick="window.print()">Baixar PDF</button>' +
       '</div>' +
@@ -1367,12 +1400,16 @@
   }
 
   document.getElementById("exportarBtn").addEventListener("click", function(){
-    var htmlExport = gerarHtmlExportacao();
+    var selVal = document.getElementById("exportDiaSelect").value;
+    var diasIdx = selVal === "semana" ? [0,1,2,3,4,5,6] : [parseInt(selVal, 10)];
+    var htmlExport = gerarHtmlExportacao(diasIdx);
     var blob = new Blob([htmlExport], { type: "text/html;charset=utf-8" });
     var url = URL.createObjectURL(blob);
     var a = document.createElement("a");
     a.href = url;
-    a.download = "escala-tecnicos_" + isoDate(weekDates[0]) + "_a_" + isoDate(weekDates[6]) + ".html";
+    a.download = diasIdx.length === 7
+      ? "escala-tecnicos_" + isoDate(weekDates[0]) + "_a_" + isoDate(weekDates[6]) + ".html"
+      : "escala-tecnicos_" + isoDate(weekDates[diasIdx[0]]) + ".html";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
