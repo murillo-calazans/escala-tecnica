@@ -236,24 +236,52 @@
 
   .temp-list{ margin-bottom: 10px; }
   .temp-item{
-    display:flex;
-    align-items:center;
-    justify-content: space-between;
     background: var(--temp-away-bg);
     color: var(--temp-away-text);
-    padding: 6px 10px;
+    padding: 8px 10px;
     border-radius: 8px;
     font-size: 12px;
     margin-bottom: 6px;
   }
-  .temp-item button{
+  .temp-item-head{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    font-weight: 600;
+    margin-bottom: 5px;
+  }
+  .temp-item-head button{
     border:none;
     background:none;
     color: var(--temp-away-text);
+    font-weight: 600;
+    cursor:pointer;
+    font-size: 11px;
+    text-decoration: underline;
+  }
+  .temp-dias-wrap{
+    display:flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .temp-dia-chip{
+    display:inline-flex;
+    align-items:center;
+    gap: 4px;
+    background: rgba(255,255,255,.55);
+    border-radius: 6px;
+    padding: 2px 4px 2px 8px;
+    font-size: 11px;
+  }
+  .temp-dia-chip button{
+    border:none;
+    background:none;
+    color: inherit;
     font-weight: 700;
     cursor:pointer;
-    font-size: 14px;
+    font-size: 13px;
     line-height: 1;
+    padding: 2px 4px;
   }
   .day-checks{
     display:flex;
@@ -470,7 +498,8 @@
 
     <hr class="divider">
 
-    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:8px;">Alocação temporária em outra cidade</label>
+    <label style="font-size:13px; font-weight:600; display:block; margin-bottom:2px;">Alocação temporária em outra cidade (padrão, toda semana)</label>
+    <p style="font-size:11px; color:var(--text-muted); margin:0 0 8px;">Isso se repete toda semana nos dias marcados. Pra um deslocamento de uma semana só, prefira editar direto o card do dia (campo "Atuação temporária neste dia").</p>
 
     <div class="temp-list" id="tempList"></div>
 
@@ -519,6 +548,11 @@
     <div class="field">
       <label>Dupla neste dia</label>
       <select id="dayDupla"></select>
+    </div>
+
+    <div class="field">
+      <label>Atuação temporária neste dia</label>
+      <select id="dayTempCidade"></select>
     </div>
 
     <div class="toggle-row">
@@ -792,6 +826,22 @@
     return exc || tech.horarios[diaKey];
   }
 
+  // Cidade de atuação temporária padrão (recorrente) do técnico naquele dia da semana, cadastrada no técnico
+  function getTempCidadePadrao(tech, diaKey){
+    var alloc = (tech.alocacoesTemporarias||[]).find(function(a){ return a.dias.indexOf(diaKey) !== -1; });
+    return alloc ? alloc.cidade : null;
+  }
+
+  // Cidade de atuação temporária efetiva numa data: usa a exceção daquele dia, se houver
+  // (pode ser "nenhuma"), senão o padrão recorrente cadastrado no técnico.
+  function getTempCidadeEfetiva(tech, diaKey, dataIso){
+    var exc = tech.excecoes && tech.excecoes[dataIso];
+    if(exc && Object.prototype.hasOwnProperty.call(exc, "tempCidadeOverride")){
+      return exc.tempCidadeOverride || null;
+    }
+    return getTempCidadePadrao(tech, diaKey);
+  }
+
   // Papel e parceiro efetivo do técnico numa data, considerando exceção avulsa daquele dia.
   // Dupla AVULSA (configurada no próprio card do técnico, só pra aquele dia): quem configura é o PRINCIPAL —
   // é ele quem decidiu levar um ajudante naquele dia. O escolhido é o AUXILIAR.
@@ -853,19 +903,18 @@
   // Retorna { cls, label, sub } para o dia de um técnico, no contexto da cidade sendo exibida
   function getCell(tech, diaKey, viewingCidade, isHome){
     var weekDate = weekDates[DIAS.indexOf(diaKey)];
-    var diaData = getDiaData(tech, diaKey, isoDate(weekDate));
+    var dataIso = isoDate(weekDate);
+    var diaData = getDiaData(tech, diaKey, dataIso);
+    var tempCidade = getTempCidadeEfetiva(tech, diaKey, dataIso);
 
     if(isHome){
       if(tech.status === "ferias" && dateInRange(weekDate, tech.feriasInicio, tech.feriasFim)){
         return { cls: "ferias", label: "Férias" };
       }
-      var tempElsewhere = (tech.alocacoesTemporarias||[]).find(function(a){
-        return a.cidade !== viewingCidade && a.dias.indexOf(diaKey) !== -1;
-      });
-      if(tempElsewhere){
+      if(tempCidade && tempCidade !== viewingCidade){
         var hh = horarioEfetivo(tech, diaData);
         var sub = (hh.inicio && hh.fim) ? (hh.inicio + "–" + hh.fim) : "";
-        return { cls: "temp-away", label: "Atuação em " + tempElsewhere.cidade, sub: sub };
+        return { cls: "temp-away", label: "Atuação em " + tempCidade, sub: sub };
       }
       if(diaData.folga) return { cls: "folga", label: "Folga" };
       if(diaData.atestado) return { cls: "atestado", label: "Atestado" };
@@ -878,10 +927,7 @@
       if(tech.status === "ferias" && dateInRange(weekDate, tech.feriasInicio, tech.feriasFim)){
         return { cls: "ferias", label: "Férias" };
       }
-      var temp = (tech.alocacoesTemporarias||[]).find(function(a){
-        return a.cidade === viewingCidade && a.dias.indexOf(diaKey) !== -1;
-      });
-      if(!temp) return { cls: "empty", label: "—" };
+      if(tempCidade !== viewingCidade) return { cls: "empty", label: "—" };
       var h2 = horarioEfetivo(tech, diaData);
       if(!h2.inicio || !h2.fim) return { cls: "empty", label: "—" };
       return { cls: "temp-here " + setorClass(tech), label: h2.inicio + "–" + h2.fim };
@@ -897,12 +943,20 @@
     return false;
   }
 
+  // Técnico atua temporariamente nesta cidade em pelo menos um dia da semana exibida (padrão ou exceção do dia)
+  function techEhConvidadoNaSemana(tech, cidade){
+    for(var idx=0; idx<DIAS.length; idx++){
+      if(getTempCidadeEfetiva(tech, DIAS[idx], isoDate(weekDates[idx])) === cidade) return true;
+    }
+    return false;
+  }
+
   function techsForCidade(cidade){
     var home = techs.filter(function(t){ return t.cidade === cidade; });
     var titulares = home.filter(function(t){ return !techEhAuxiliarNaSemana(t, cidade); });
     var duplados = home.filter(function(t){ return techEhAuxiliarNaSemana(t, cidade); });
     var guests = techs.filter(function(t){
-      return t.cidade !== cidade && (t.alocacoesTemporarias||[]).some(function(a){ return a.cidade === cidade; });
+      return t.cidade !== cidade && techEhConvidadoNaSemana(t, cidade);
     });
     return { home: titulares.concat(duplados), guests: guests };
   }
@@ -1069,16 +1123,42 @@
     pendingTempAllocs.forEach(function(a, idx){
       var item = document.createElement("div");
       item.className = "temp-item";
-      var diasTxt = a.dias.map(function(d){ return DIA_LABEL[d]; }).join(", ");
-      item.innerHTML = '<span>' + a.cidade + " — " + diasTxt + '</span>';
-      var btn = document.createElement("button");
-      btn.textContent = "×";
-      btn.title = "Remover";
-      btn.addEventListener("click", function(){
-        pendingTempAllocs.splice(idx,1);
+
+      var head = document.createElement("div");
+      head.className = "temp-item-head";
+      var nomeCidade = document.createElement("span");
+      nomeCidade.textContent = a.cidade;
+      head.appendChild(nomeCidade);
+      var removerCidadeBtn = document.createElement("button");
+      removerCidadeBtn.type = "button";
+      removerCidadeBtn.textContent = "Remover cidade";
+      removerCidadeBtn.addEventListener("click", function(){
+        pendingTempAllocs.splice(idx, 1);
         renderTempList();
       });
-      item.appendChild(btn);
+      head.appendChild(removerCidadeBtn);
+      item.appendChild(head);
+
+      var diasWrap = document.createElement("div");
+      diasWrap.className = "temp-dias-wrap";
+      a.dias.forEach(function(dia){
+        var chip = document.createElement("span");
+        chip.className = "temp-dia-chip";
+        chip.appendChild(document.createTextNode(DIA_LABEL[dia]));
+        var x = document.createElement("button");
+        x.type = "button";
+        x.textContent = "×";
+        x.title = "Remover " + DIA_LABEL[dia];
+        x.addEventListener("click", function(){
+          a.dias = a.dias.filter(function(d){ return d !== dia; });
+          if(a.dias.length === 0) pendingTempAllocs.splice(idx, 1);
+          renderTempList();
+        });
+        chip.appendChild(x);
+        diasWrap.appendChild(chip);
+      });
+      item.appendChild(diasWrap);
+
       wrap.appendChild(item);
     });
   }
@@ -1275,6 +1355,32 @@
     select.value = valorAtual;
   }
 
+  function fillDayTempCidadeSelect(select, tech, diaKey, dataIso){
+    select.innerHTML = "";
+    var optPadrao = document.createElement("option");
+    optPadrao.value = "__padrao__";
+    var padraoCidade = getTempCidadePadrao(tech, diaKey);
+    optPadrao.textContent = "Padrão (" + (padraoCidade ? "Atuação em " + padraoCidade : "nesta cidade") + ")";
+    select.appendChild(optPadrao);
+
+    var optNenhuma = document.createElement("option");
+    optNenhuma.value = "";
+    optNenhuma.textContent = "Nesta cidade só neste dia";
+    select.appendChild(optNenhuma);
+
+    CIDADES.filter(function(c){ return c !== tech.cidade; })
+      .forEach(function(c){
+        var opt = document.createElement("option");
+        opt.value = c;
+        opt.textContent = c;
+        select.appendChild(opt);
+      });
+
+    var exc = tech.excecoes && tech.excecoes[dataIso];
+    var valorAtual = (exc && Object.prototype.hasOwnProperty.call(exc, "tempCidadeOverride")) ? (exc.tempCidadeOverride || "") : "__padrao__";
+    select.value = valorAtual;
+  }
+
   function openDayModal(techId, dia, dataIso){
     var tech = getTech(techId);
     if(!tech) return;
@@ -1290,6 +1396,7 @@
     document.getElementById("dayAtestado").checked = !!horario.atestado;
     document.getElementById("dayOutras").checked = !!horario.outras;
     fillDayDuplaSelect(document.getElementById("dayDupla"), tech, dataIso);
+    fillDayTempCidadeSelect(document.getElementById("dayTempCidade"), tech, dia, dataIso);
     updateDayInputsState();
     document.getElementById("dayModal").classList.remove("hidden");
   }
@@ -1310,6 +1417,7 @@
     if(!tech || !currentDia || !currentDataIso) return;
     var custom = document.getElementById("dayCustom").checked;
     var duplaSelVal = document.getElementById("dayDupla").value;
+    var tempCidadeSelVal = document.getElementById("dayTempCidade").value;
     var novaExcecao = {
       custom: custom,
       inicio: custom ? document.getElementById("dayInicio").value : "",
@@ -1320,6 +1428,9 @@
     };
     if(duplaSelVal !== "__padrao__"){
       novaExcecao.duplaOverride = duplaSelVal;
+    }
+    if(tempCidadeSelVal !== "__padrao__"){
+      novaExcecao.tempCidadeOverride = tempCidadeSelVal;
     }
     if(!tech.excecoes) tech.excecoes = {};
     tech.excecoes[currentDataIso] = novaExcecao;
