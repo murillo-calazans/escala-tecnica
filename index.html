@@ -1767,11 +1767,23 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return String(str).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
 
+  // Técnico é o auxiliar (duplado) de alguém em pelo menos um dos dias sendo exportados, na cidade dele.
+  // Só usado na exportação — na tela normal, o duplado continua aparecendo (só desce na lista).
+  function techEhAuxiliarNosDiasExportados(tech, cidade, diasIdx){
+    for(var i=0; i<diasIdx.length; i++){
+      var idx = diasIdx[i];
+      var cell = getCell(tech, DIAS[idx], cidade, true);
+      if(getDuplaSub(tech, DIAS[idx], weekDates[idx], cell.cls) === "Duplado") return true;
+    }
+    return false;
+  }
+
   function gerarSecaoCidadeHTML(cidade, logoUri, diasIdx, dataTxt){
     var grupo = techsForCidade(cidade);
-    var total = grupo.home.length + grupo.guests.length;
+    var homeVisivel = grupo.home.filter(function(t){ return !techEhAuxiliarNosDiasExportados(t, cidade, diasIdx); });
+    var total = homeVisivel.length + grupo.guests.length;
     if(total === 0) return "";
-    var rows = grupo.home.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx); }).join("") +
+    var rows = homeVisivel.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx); }).join("") +
                grupo.guests.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx); }).join("");
     var contagem = total === 1 ? "1 técnico" : total + " técnicos";
     return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' +
