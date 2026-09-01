@@ -900,6 +900,15 @@
     return tech.setor === "Manutenção" ? "manutencao" : "instalador";
   }
 
+  // Fim de semana ou feriado sem nenhuma edição naquele dia (nem exceção, nem padrão
+  // customizado): folga por padrão. Se o dia foi editado (exceção ou padrão do técnico),
+  // essa edição sempre prevalece. Usado tanto para exibir o card quanto para abrir o modal do dia.
+  function ehFolgaPadraoNaoEditado(tech, diaKey, dataIso, weekDate, diaData){
+    var temExcecao = !!(tech.excecoes && tech.excecoes[dataIso]);
+    var diaIntocado = !diaData.custom && !diaData.folga && !diaData.atestado && !diaData.outras;
+    return !temExcecao && diaIntocado && (diaKey === "sab" || diaKey === "dom" || !!getFeriado(weekDate));
+  }
+
   // Retorna { cls, label, sub } para o dia de um técnico, no contexto da cidade sendo exibida
   function getCell(tech, diaKey, viewingCidade, isHome){
     var weekDate = weekDates[DIAS.indexOf(diaKey)];
@@ -916,12 +925,7 @@
         var sub = (hh.inicio && hh.fim) ? (hh.inicio + "–" + hh.fim) : "";
         return { cls: "temp-away", label: "Atuação em " + tempCidade, sub: sub };
       }
-      // Fim de semana ou feriado sem nenhuma edição naquele dia (nem exceção, nem padrão
-      // customizado): folga por padrão. Se o dia foi editado (exceção ou padrão do técnico),
-      // essa edição sempre prevalece.
-      var temExcecao = !!(tech.excecoes && tech.excecoes[dataIso]);
-      var diaIntocado = !diaData.custom && !diaData.folga && !diaData.atestado && !diaData.outras;
-      if(!temExcecao && diaIntocado && (diaKey === "sab" || diaKey === "dom" || getFeriado(weekDate))){
+      if(ehFolgaPadraoNaoEditado(tech, diaKey, dataIso, weekDate, diaData)){
         return { cls: "folga", label: "Folga" };
       }
       if(diaData.folga) return { cls: "folga", label: "Folga" };
@@ -1396,11 +1400,13 @@
     currentDia = dia;
     currentDataIso = dataIso;
     var horario = getDiaData(tech, dia, dataIso);
+    var weekDate = weekDates[DIAS.indexOf(dia)];
+    var folgaPadrao = ehFolgaPadraoNaoEditado(tech, dia, dataIso, weekDate, horario);
     document.getElementById("dayModalTitle").textContent = tech.nome + " — " + DIA_LABEL[dia] + ", " + formatDataCurta(dataIso);
     document.getElementById("dayCustom").checked = !!horario.custom;
     document.getElementById("dayInicio").value = horario.custom ? (horario.inicio || "") : (tech.horarioPadrao.inicio || "");
     document.getElementById("dayFim").value = horario.custom ? (horario.fim || "") : (tech.horarioPadrao.fim || "");
-    document.getElementById("dayFolga").checked = !!horario.folga;
+    document.getElementById("dayFolga").checked = !!horario.folga || folgaPadrao;
     document.getElementById("dayAtestado").checked = !!horario.atestado;
     document.getElementById("dayOutras").checked = !!horario.outras;
     fillDayDuplaSelect(document.getElementById("dayDupla"), tech, dataIso);
