@@ -916,6 +916,14 @@
         var sub = (hh.inicio && hh.fim) ? (hh.inicio + "–" + hh.fim) : "";
         return { cls: "temp-away", label: "Atuação em " + tempCidade, sub: sub };
       }
+      // Fim de semana ou feriado sem nenhuma edição naquele dia (nem exceção, nem padrão
+      // customizado): folga por padrão. Se o dia foi editado (exceção ou padrão do técnico),
+      // essa edição sempre prevalece.
+      var temExcecao = !!(tech.excecoes && tech.excecoes[dataIso]);
+      var diaIntocado = !diaData.custom && !diaData.folga && !diaData.atestado && !diaData.outras;
+      if(!temExcecao && diaIntocado && (diaKey === "sab" || diaKey === "dom" || getFeriado(weekDate))){
+        return { cls: "folga", label: "Folga" };
+      }
       if(diaData.folga) return { cls: "folga", label: "Folga" };
       if(diaData.atestado) return { cls: "atestado", label: "Atestado" };
       if(diaData.outras) return { cls: "outras", label: "Outras atividades" };
