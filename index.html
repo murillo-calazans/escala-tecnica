@@ -76,6 +76,15 @@
     font-weight: 600;
     margin: 0 0 10px 2px;
   }
+  .setor-heading{
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-muted);
+    margin: 14px 0 8px 2px;
+  }
+  .setor-heading:first-of-type{ margin-top: 2px; }
 
   .tech-row{
     display:flex;
@@ -1035,6 +1044,15 @@
     container.appendChild(row);
   }
 
+  var GRUPOS_SETOR = [
+    { setor: "Instalador", titulo: "Instaladores" },
+    { setor: "Manutenção", titulo: "Manutenção" }
+  ];
+
+  function ehDoSetor(tech, setor){
+    return (tech.setor === "Manutenção" ? "Manutenção" : "Instalador") === setor;
+  }
+
   function renderCitySection(cidade, container){
     var grupo = techsForCidade(cidade);
     if(grupo.home.length === 0 && grupo.guests.length === 0) return;
@@ -1047,8 +1065,19 @@
 
     renderWeekHeader(section);
 
-    grupo.home.forEach(function(t){ renderTechRow(t, cidade, true, section); });
-    grupo.guests.forEach(function(t){ renderTechRow(t, cidade, false, section); });
+    GRUPOS_SETOR.forEach(function(g){
+      var homeDoSetor = grupo.home.filter(function(t){ return ehDoSetor(t, g.setor); });
+      var guestsDoSetor = grupo.guests.filter(function(t){ return ehDoSetor(t, g.setor); });
+      if(homeDoSetor.length === 0 && guestsDoSetor.length === 0) return;
+
+      var subTitle = document.createElement("h3");
+      subTitle.className = "setor-heading";
+      subTitle.textContent = g.titulo;
+      section.appendChild(subTitle);
+
+      homeDoSetor.forEach(function(t){ renderTechRow(t, cidade, true, section); });
+      guestsDoSetor.forEach(function(t){ renderTechRow(t, cidade, false, section); });
+    });
 
     container.appendChild(section);
   }
@@ -1578,6 +1607,9 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
 .city-heading h2{font-size:22px;font-weight:700;margin:0;letter-spacing:.01em;}
 .city-heading .count{font-size:12px;color:var(--text-muted);background:var(--surface-sunken);border:1px solid var(--border);padding:2px 9px;border-radius:999px;font-weight:600;}
 
+.setor-heading{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:16px 0 8px 2px;}
+.setor-heading:first-of-type{margin-top:4px;}
+
 .week-header{display:flex;gap:8px;margin:0 0 8px 200px;}
 .week-header .wd{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
 .week-header .wd .num{display:block;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--text);margin-top:2px;font-weight:600;}
@@ -1778,19 +1810,29 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return false;
   }
 
+  function gerarGrupoSetorHTML(titulo, homeTechs, guestTechs, cidade, diasIdx){
+    if(homeTechs.length === 0 && guestTechs.length === 0) return "";
+    var rows = homeTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx); }).join("") +
+               guestTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx); }).join("");
+    return '<h3 class="setor-heading">' + escapeHtml(titulo) + '</h3><div class="rows">' + rows + '</div>';
+  }
+
   function gerarSecaoCidadeHTML(cidade, logoUri, diasIdx, dataTxt){
     var grupo = techsForCidade(cidade);
     var homeVisivel = grupo.home.filter(function(t){ return !techEhAuxiliarNosDiasExportados(t, cidade, diasIdx); });
     var total = homeVisivel.length + grupo.guests.length;
     if(total === 0) return "";
-    var rows = homeVisivel.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx); }).join("") +
-               grupo.guests.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx); }).join("");
+    var gruposHtml = GRUPOS_SETOR.map(function(g){
+      var homeDoSetor = homeVisivel.filter(function(t){ return ehDoSetor(t, g.setor); });
+      var guestsDoSetor = grupo.guests.filter(function(t){ return ehDoSetor(t, g.setor); });
+      return gerarGrupoSetorHTML(g.titulo, homeDoSetor, guestsDoSetor, cidade, diasIdx);
+    }).join("");
     var contagem = total === 1 ? "1 técnico" : total + " técnicos";
     return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' +
       gerarPageTopbarHTML(logoUri, dataTxt) +
       '<div class="city-heading"><h2>' + escapeHtml(cidade) + '</h2><span class="count">' + contagem + '</span></div>' +
       gerarWeekHeaderHTML(diasIdx) +
-      '<div class="rows">' + rows + '</div>' +
+      gruposHtml +
       gerarLegendaHTML() +
     '</section>';
   }
