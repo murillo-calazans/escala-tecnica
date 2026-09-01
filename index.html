@@ -1858,8 +1858,8 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
 .setor-heading:first-of-type{margin-top:4px;}
 
 .week-header{display:flex;gap:8px;margin:0 0 8px 200px;}
-.week-header .wd{flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;}
-.week-header .wd .num{display:block;font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--text);margin-top:2px;font-weight:600;}
+.week-header .wd{flex:1;text-align:center;font-size:13px;font-weight:700;color:var(--text-muted);letter-spacing:.01em;line-height:1.25;}
+.week-header .wd .num{display:block;font-family:"IBM Plex Mono",monospace;font-size:26px;color:var(--text);margin-top:4px;font-weight:800;}
 .week-header .wd.feriado{color:var(--ferias-text);}
 .week-header .feriado-tag{
   display:inline-block;font-size:9px;font-weight:700;color:#fff;background:var(--ferias-text);
@@ -1867,7 +1867,7 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
 }
 
 .rows{display:flex;flex-direction:column;gap:10px;}
-.folga-footer{font-size:11px;font-style:italic;color:var(--text-muted);margin:4px 0 16px 2px;}
+.folga-footer{font-size:14px;font-style:italic;color:var(--text-muted);margin:4px 0 16px 2px;}
 .tech-row{display:flex;align-items:stretch;gap:10px;}
 
 .tech-name-card{
@@ -1993,7 +1993,7 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
       var feriado = getFeriado(weekDates[idx]);
       return '<div class="wd' + (feriado ? ' feriado' : '') + '">' +
         (feriado ? '<span class="feriado-tag">Feriado · ' + escapeHtml(feriado) + '</span>' : '') +
-        DIA_LABEL[dia] + '<span class="num">' + weekDates[idx].getDate() + '</span></div>';
+        DIA_SEMANA_EXTENSO[dia] + '<span class="num">' + weekDates[idx].getDate() + '</span></div>';
     }).join('') + '</div>';
   }
 
@@ -2076,23 +2076,24 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return true;
   }
 
-  // Técnico está de folga em TODOS os dias exportados — vira só uma menção no rodapé, sem linha própria
-  function techEstaDeFolgaTodosDiasExportados(tech, diasIdx){
+  // Técnico está com o mesmo status (folga, férias etc.) em TODOS os dias exportados — vira só uma
+  // menção no rodapé, sem linha própria
+  function techEstaComStatusTodosDiasExportados(tech, diasIdx, cls){
     for(var i=0; i<diasIdx.length; i++){
       var idx = diasIdx[i];
       var cell = getCell(tech, DIAS[idx], tech.cidade, true, weekDates[idx], tech.setor);
-      if(cell.cls !== "folga") return false;
+      if(cell.cls !== cls) return false;
     }
     return true;
   }
 
-  function gerarGrupoSetorHTML(titulo, homeTechs, guestTechs, cidade, diasIdx, viewingSetor, folgaTechs){
-    if(homeTechs.length === 0 && guestTechs.length === 0 && folgaTechs.length === 0) return "";
+  function gerarGrupoSetorHTML(titulo, homeTechs, guestTechs, cidade, diasIdx, viewingSetor, folgaTechs, feriasTechs){
+    if(homeTechs.length === 0 && guestTechs.length === 0 && folgaTechs.length === 0 && feriasTechs.length === 0) return "";
     var rows = homeTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx, viewingSetor); }).join("") +
                guestTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx, viewingSetor); }).join("");
-    var footer = folgaTechs.length
-      ? '<div class="folga-footer">De folga: ' + folgaTechs.map(function(t){ return escapeHtml(t.nome); }).join(", ") + '</div>'
-      : '';
+    var footer =
+      (folgaTechs.length ? '<div class="folga-footer">De folga: ' + folgaTechs.map(function(t){ return escapeHtml(t.nome); }).join(", ") + '</div>' : '') +
+      (feriasTechs.length ? '<div class="folga-footer">De férias: ' + feriasTechs.map(function(t){ return escapeHtml(t.nome); }).join(", ") + '</div>' : '');
     return '<h3 class="setor-heading">' + escapeHtml(titulo) + '</h3>' +
       (rows ? '<div class="rows">' + rows + '</div>' : '') +
       footer;
@@ -2103,20 +2104,22 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     var homeElegivel = grupo.home.filter(function(t){
       return !techEhAuxiliarNosDiasExportados(t, cidade, diasIdx) && !techEhOcultavelHomeExportado(t, diasIdx);
     });
-    var homeVisivel = homeElegivel.filter(function(t){ return !techEstaDeFolgaTodosDiasExportados(t, diasIdx); });
-    var homeDeFolga = homeElegivel.filter(function(t){ return techEstaDeFolgaTodosDiasExportados(t, diasIdx); });
+    var homeDeFolga = homeElegivel.filter(function(t){ return techEstaComStatusTodosDiasExportados(t, diasIdx, "folga"); });
+    var homeDeFerias = homeElegivel.filter(function(t){ return techEstaComStatusTodosDiasExportados(t, diasIdx, "ferias"); });
+    var homeVisivel = homeElegivel.filter(function(t){ return homeDeFolga.indexOf(t) === -1 && homeDeFerias.indexOf(t) === -1; });
     var convidadosDeSetorPorGrupo = GRUPOS_SETOR.map(function(g){
       return grupo.home.filter(function(t){ return techEhConvidadoDeSetorNosDiasExportados(t, g.setor, diasIdx); });
     });
     var totalAtivo = homeVisivel.length + grupo.guests.length +
       convidadosDeSetorPorGrupo.reduce(function(soma, lista){ return soma + lista.length; }, 0);
-    var totalGeral = totalAtivo + homeDeFolga.length;
+    var totalGeral = totalAtivo + homeDeFolga.length + homeDeFerias.length;
     if(totalGeral === 0) return "";
     var gruposHtml = GRUPOS_SETOR.map(function(g, i){
       var homeDoSetor = homeVisivel.filter(function(t){ return ehDoSetor(t, g.setor); });
       var guestsDoSetor = grupo.guests.filter(function(t){ return ehDoSetor(t, g.setor); }).concat(convidadosDeSetorPorGrupo[i]);
       var folgaDoSetor = homeDeFolga.filter(function(t){ return ehDoSetor(t, g.setor); });
-      return gerarGrupoSetorHTML(g.titulo, homeDoSetor, guestsDoSetor, cidade, diasIdx, g.setor, folgaDoSetor);
+      var feriasDoSetor = homeDeFerias.filter(function(t){ return ehDoSetor(t, g.setor); });
+      return gerarGrupoSetorHTML(g.titulo, homeDoSetor, guestsDoSetor, cidade, diasIdx, g.setor, folgaDoSetor, feriasDoSetor);
     }).join("");
     var contagem = totalAtivo === 1 ? "1 técnico" : totalAtivo + " técnicos";
     return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' +
