@@ -10,10 +10,10 @@
     --border: #e2e6ec;
     --text: #1f2530;
     --text-muted: #7a8494;
-    --manha-bg: #dbeafe;
-    --manha-text: #1e40af;
-    --noite-bg: #d1fae5;
-    --noite-text: #065f46;
+    --instalador-bg: #dbeafe;
+    --instalador-text: #1e40af;
+    --manutencao-bg: #d1fae5;
+    --manutencao-text: #065f46;
     --folga-bg: #eef1f5;
     --folga-text: #97a1b0;
     --atestado-bg: #fef3c7;
@@ -145,16 +145,16 @@
     font-style: italic;
     opacity: .85;
   }
-  .day-card.manha{ background: var(--manha-bg); color: var(--manha-text); }
-  .day-card.noite{ background: var(--noite-bg); color: var(--noite-text); }
+  .day-card.instalador{ background: var(--instalador-bg); color: var(--instalador-text); }
+  .day-card.manutencao{ background: var(--manutencao-bg); color: var(--manutencao-text); }
   .day-card.folga{ background: var(--folga-bg); color: var(--folga-text); }
   .day-card.atestado{ background: var(--atestado-bg); color: var(--atestado-text); }
   .day-card.outras{ background: var(--outras-bg); color: var(--outras-text); }
   .day-card.ferias{ background: var(--ferias-bg); color: var(--ferias-text); }
   .day-card.temp-away{ background: var(--temp-away-bg); color: var(--temp-away-text); }
   .day-card.temp-here{ border-style: dashed; opacity: .65; }
-  .day-card.temp-here.manha{ background: var(--manha-bg); color: var(--manha-text); }
-  .day-card.temp-here.noite{ background: var(--noite-bg); color: var(--noite-text); }
+  .day-card.temp-here.instalador{ background: var(--instalador-bg); color: var(--instalador-text); }
+  .day-card.temp-here.manutencao{ background: var(--manutencao-bg); color: var(--manutencao-text); }
   .day-card.empty{ background: #fafbfc; color: var(--empty-text); }
 
   .week-header{
@@ -187,8 +187,8 @@
   }
   .legend .item{ display:flex; align-items:center; gap:6px; }
   .legend .dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
-  .legend .dot.manha{ background: var(--manha-text); }
-  .legend .dot.noite{ background: var(--noite-text); }
+  .legend .dot.instalador{ background: var(--instalador-text); }
+  .legend .dot.manutencao{ background: var(--manutencao-text); }
 
   .modal-overlay{
     position: fixed;
@@ -386,8 +386,8 @@
 <div id="scheduleContainer"></div>
 
 <div class="legend">
-  <div class="item"><span class="dot manha"></span> Manhã</div>
-  <div class="item"><span class="dot noite"></span> Noite</div>
+  <div class="item"><span class="dot instalador"></span> Instalador</div>
+  <div class="item"><span class="dot manutencao"></span> Manutenção</div>
 </div>
 
 <!-- Modal técnico -->
@@ -826,7 +826,7 @@
   // O principal mostra "Em dupla com X" por extenso; o auxiliar mostra só "Duplado", sem nome. "Solo" quando o
   // parceiro falta naquele dia.
   function getDuplaSub(tech, dia, weekDate, cellCls){
-    if(!/(^|\s)(manha|noite)(\s|$)/.test(cellCls)) return null;
+    if(!/(^|\s)(instalador|manutencao)(\s|$)/.test(cellCls)) return null;
 
     var dataIso = isoDate(weekDate);
     var info = getDuplaInfo(tech, dataIso);
@@ -846,10 +846,8 @@
     return { inicio: tech.horarioPadrao.inicio, fim: tech.horarioPadrao.fim };
   }
 
-  function shiftClass(horario){
-    if(!horario.inicio) return "manha";
-    var hour = parseInt(horario.inicio.split(":")[0], 10);
-    return hour < 12 ? "manha" : "noite";
+  function setorClass(tech){
+    return tech.setor === "Manutenção" ? "manutencao" : "instalador";
   }
 
   // Retorna { cls, label, sub } para o dia de um técnico, no contexto da cidade sendo exibida
@@ -874,7 +872,7 @@
       if(diaData.outras) return { cls: "outras", label: "Outras atividades" };
       var horario = horarioEfetivo(tech, diaData);
       if(!horario.inicio || !horario.fim) return { cls: "empty", label: "—" };
-      return { cls: shiftClass(horario), label: horario.inicio + "–" + horario.fim };
+      return { cls: setorClass(tech), label: horario.inicio + "–" + horario.fim };
     } else {
       // linha de convidado (alocação temporária) na cidade viewingCidade
       if(tech.status === "ferias" && dateInRange(weekDate, tech.feriasInicio, tech.feriasFim)){
@@ -886,7 +884,7 @@
       if(!temp) return { cls: "empty", label: "—" };
       var h2 = horarioEfetivo(tech, diaData);
       if(!h2.inicio || !h2.fim) return { cls: "empty", label: "—" };
-      return { cls: "temp-here " + shiftClass(h2), label: h2.inicio + "–" + h2.fim };
+      return { cls: "temp-here " + setorClass(tech), label: h2.inicio + "–" + h2.fim };
     }
   }
 
@@ -1351,8 +1349,8 @@
   --accent-strong:#0b2140;
   --accent-contrast:#ffffff;
 
-  --manha-bg:#fdf1de;   --manha-text:#a9590a;
-  --noite-bg:#eceafc;   --noite-text:#4433b0;
+  --instalador-bg:#fdf1de;   --instalador-text:#a9590a;
+  --manutencao-bg:#eceafc;   --manutencao-text:#4433b0;
   --folga-bg:#eef1f5;   --folga-text:#7d879b;
   --atestado-bg:#e2f4f1;--atestado-text:#0d7a6c;
   --ferias-bg:#fce7ec;  --ferias-text:#bd1550;
@@ -1375,8 +1373,8 @@
     --accent-strong:#a9c4fb;
     --accent-contrast:#0b1420;
 
-    --manha-bg:rgba(217,142,45,.16); --manha-text:#f0b876;
-    --noite-bg:rgba(102,89,240,.2);  --noite-text:#bcb4ff;
+    --instalador-bg:rgba(217,142,45,.16); --instalador-text:#f0b876;
+    --manutencao-bg:rgba(102,89,240,.2);  --manutencao-text:#bcb4ff;
     --folga-bg:rgba(255,255,255,.05);--folga-text:#98a2ba;
     --atestado-bg:rgba(20,166,148,.18);--atestado-text:#6be0cc;
     --ferias-bg:rgba(217,49,101,.18);--ferias-text:#f793ae;
@@ -1398,8 +1396,8 @@
   --accent-strong:#a9c4fb;
   --accent-contrast:#0b1420;
 
-  --manha-bg:rgba(217,142,45,.16); --manha-text:#f0b876;
-  --noite-bg:rgba(102,89,240,.2);  --noite-text:#bcb4ff;
+  --instalador-bg:rgba(217,142,45,.16); --instalador-text:#f0b876;
+  --manutencao-bg:rgba(102,89,240,.2);  --manutencao-text:#bcb4ff;
   --folga-bg:rgba(255,255,255,.05);--folga-text:#98a2ba;
   --atestado-bg:rgba(20,166,148,.18);--atestado-text:#6be0cc;
   --ferias-bg:rgba(217,49,101,.18);--ferias-text:#f793ae;
@@ -1501,16 +1499,16 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
 .day-card .sub{font-size:10.5px;margin-top:1px;line-height:1.3;opacity:.9;}
 .day-card .sub.dupla-sub{font-style:italic;}
 
-.day-card.manha{background:var(--manha-bg);color:var(--manha-text);border-color:transparent;}
-.day-card.noite{background:var(--noite-bg);color:var(--noite-text);border-color:transparent;}
+.day-card.instalador{background:var(--instalador-bg);color:var(--instalador-text);border-color:transparent;}
+.day-card.manutencao{background:var(--manutencao-bg);color:var(--manutencao-text);border-color:transparent;}
 .day-card.folga{background:var(--folga-bg);color:var(--folga-text);border-color:transparent;}
 .day-card.atestado{background:var(--atestado-bg);color:var(--atestado-text);border-color:transparent;}
 .day-card.outras{background:var(--outras-bg);color:var(--outras-text);border-color:transparent;}
 .day-card.ferias{background:var(--ferias-bg);color:var(--ferias-text);border-color:transparent;}
 .day-card.temp-away{background:var(--temp-bg);color:var(--temp-text);border-color:transparent;}
 .day-card.temp-here{border-style:dashed;opacity:.7;background:var(--surface);}
-.day-card.temp-here.manha{background:var(--manha-bg);color:var(--manha-text);}
-.day-card.temp-here.noite{background:var(--noite-bg);color:var(--noite-text);}
+.day-card.temp-here.instalador{background:var(--instalador-bg);color:var(--instalador-text);}
+.day-card.temp-here.manutencao{background:var(--manutencao-bg);color:var(--manutencao-text);}
 .day-card.empty{background:var(--surface-sunken);color:var(--text-faint);border-style:dashed;}
 .day-card.feriado-day{box-shadow:inset 0 0 0 2px var(--ferias-text);}
 
@@ -1525,8 +1523,8 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
   width:20px;height:20px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;
 }
 .legend .swatch svg{width:11px;height:11px;}
-.legend .swatch.manha{background:var(--manha-bg);color:var(--manha-text);}
-.legend .swatch.noite{background:var(--noite-bg);color:var(--noite-text);}
+.legend .swatch.instalador{background:var(--instalador-bg);color:var(--instalador-text);}
+.legend .swatch.manutencao{background:var(--manutencao-bg);color:var(--manutencao-text);}
 .legend .swatch.folga{background:var(--folga-bg);color:var(--folga-text);}
 .legend .swatch.atestado{background:var(--atestado-bg);color:var(--atestado-text);}
 .legend .swatch.outras{background:var(--outras-bg);color:var(--outras-text);}
@@ -1561,8 +1559,8 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
   var ICONE_BUSCA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>';
   var ICONE_IMPRIMIR = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"></path><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>';
   var ICONES_STATUS = {
-    manha: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>',
-    noite: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>',
+    instalador: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>',
+    manutencao: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"></path><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
     folga: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>',
     atestado: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L4 6v6c0 5 3.4 8.4 8 10 4.6-1.6 8-5 8-10V6z"></path><path d="M12 8v6M9 11h6"></path></svg>',
     ferias: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21c4-8 12-8 16-16"></path><path d="M20 5c0 4-3 6-8 6"></path></svg>',
@@ -1630,8 +1628,8 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
   function gerarLegendaHTML(){
     return '<div class="legend no-print">' +
       '<span class="title">Legenda</span>' +
-      '<div class="item"><span class="swatch manha">' + ICONES_STATUS.manha + '</span>Manhã</div>' +
-      '<div class="item"><span class="swatch noite">' + ICONES_STATUS.noite + '</span>Noite</div>' +
+      '<div class="item"><span class="swatch instalador">' + ICONES_STATUS.instalador + '</span>Instalador</div>' +
+      '<div class="item"><span class="swatch manutencao">' + ICONES_STATUS.manutencao + '</span>Manutenção</div>' +
       '<div class="item"><span class="swatch folga">' + ICONES_STATUS.folga + '</span>Folga</div>' +
       '<div class="item"><span class="swatch atestado">' + ICONES_STATUS.atestado + '</span>Atestado</div>' +
       '<div class="item"><span class="swatch ferias">' + ICONES_STATUS.ferias + '</span>Férias</div>' +
