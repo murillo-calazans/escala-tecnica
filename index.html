@@ -209,6 +209,7 @@
     z-index: 100;
   }
   .modal-overlay.hidden{ display:none; }
+  .hidden{ display:none !important; }
   .modal{
     background: #fff;
     border-radius: 14px;
@@ -395,6 +396,73 @@
     text-overflow:ellipsis;
   }
   .day-card.feriado-day{ box-shadow: inset 0 0 0 2px var(--ferias-text); }
+
+  .calendario-nav{
+    display:flex;
+    align-items:center;
+    gap:12px;
+    margin-bottom:18px;
+  }
+  .calendario-titulo{
+    font-size:17px;
+    font-weight:700;
+    color: var(--text);
+    min-width:170px;
+    text-align:center;
+  }
+  .calendario-grid{
+    display:grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap:8px;
+  }
+  .calendario-wd{
+    text-align:center;
+    font-size:11px;
+    font-weight:700;
+    color: var(--text-muted);
+    text-transform:uppercase;
+    padding-bottom:2px;
+  }
+  .calendario-dia{
+    background: var(--card-bg);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:10px 8px;
+    min-height:88px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:1px;
+  }
+  .calendario-dia.vazio{ background:transparent; border-color:transparent; }
+  .calendario-dia.feriado{ box-shadow: inset 0 0 0 2px var(--ferias-text); }
+  .calendario-dia.zero{ opacity: .5; }
+  .calendario-num{
+    align-self:flex-start;
+    font-size:12px;
+    font-weight:700;
+    color: var(--text-muted);
+  }
+  .calendario-feriado-tag{
+    align-self:flex-start;
+    font-size:9px;
+    font-weight:700;
+    color: var(--ferias-text);
+    margin-bottom:2px;
+  }
+  .calendario-count{
+    font-size:26px;
+    font-weight:800;
+    color: #1d3f72;
+    line-height:1.15;
+  }
+  .calendario-count-label{
+    font-size:10px;
+    color: var(--text-muted);
+    text-transform:uppercase;
+    letter-spacing:.03em;
+  }
 </style>
 </head>
 <body>
@@ -413,6 +481,7 @@
   <span class="periodo" id="periodoLabel"></span>
   <button class="btn btn-secondary" id="semanaProximaBtn" title="Próxima semana">▶</button>
   <button class="btn btn-secondary" id="semanaHojeBtn">Semana atual</button>
+  <button class="btn btn-secondary" id="toggleCalendarioBtn">📅 Calendário mensal</button>
   <select id="exportDiaSelect" class="btn btn-secondary" style="margin-left:auto;"></select>
   <button class="btn btn-secondary" id="exportarBtn">⬇ Exportar escala</button>
   <button class="btn btn-primary" id="novoTecnicoBtn">+ Novo técnico</button>
@@ -422,10 +491,12 @@
 
 <div id="scheduleContainer"></div>
 
-<div class="legend">
+<div class="legend" id="legendaTurnos">
   <div class="item"><span class="dot instalador"></span> Instalador</div>
   <div class="item"><span class="dot manutencao"></span> Manutenção</div>
 </div>
+
+<div id="calendarioContainer" class="hidden"></div>
 
 <!-- Modal técnico -->
 <div class="modal-overlay hidden" id="techModal">
@@ -562,6 +633,11 @@
     <div class="field">
       <label>Atuação temporária neste dia</label>
       <select id="dayTempCidade"></select>
+    </div>
+
+    <div class="field">
+      <label>Função neste dia</label>
+      <select id="daySetor"></select>
     </div>
 
     <div class="toggle-row">
@@ -905,8 +981,19 @@
     return { inicio: tech.horarioPadrao.inicio, fim: tech.horarioPadrao.fim };
   }
 
-  function setorClass(tech){
-    return tech.setor === "Manutenção" ? "manutencao" : "instalador";
+  // Função (setor) efetiva do técnico numa data: usa a exceção daquele dia, se houver, senão o
+  // setor cadastrado no técnico. Permite remanejar um Instalador pra Manutenção (ou vice-versa)
+  // só naquele dia, sem alterar o cadastro.
+  function getSetorEfetivo(tech, dataIso){
+    var exc = tech.excecoes && tech.excecoes[dataIso];
+    if(exc && Object.prototype.hasOwnProperty.call(exc, "setorOverride") && exc.setorOverride){
+      return exc.setorOverride;
+    }
+    return tech.setor;
+  }
+
+  function setorClass(tech, dataIso){
+    return getSetorEfetivo(tech, dataIso) === "Manutenção" ? "manutencao" : "instalador";
   }
 
   // Fim de semana ou feriado sem nenhuma edição naquele dia (nem exceção, nem padrão
@@ -918,9 +1005,9 @@
     return !temExcecao && diaIntocado && (diaKey === "sab" || diaKey === "dom" || !!getFeriado(weekDate));
   }
 
-  // Retorna { cls, label, sub } para o dia de um técnico, no contexto da cidade sendo exibida
-  function getCell(tech, diaKey, viewingCidade, isHome){
-    var weekDate = weekDates[DIAS.indexOf(diaKey)];
+  // Retorna { cls, label, sub } para o dia de um técnico, numa data específica, no contexto da cidade e do
+  // grupo de setor sendo exibidos. viewingSetor é opcional (usado só pelas seções agrupadas por setor).
+  function getCell(tech, diaKey, viewingCidade, isHome, weekDate, viewingSetor){
     var dataIso = isoDate(weekDate);
     var diaData = getDiaData(tech, diaKey, dataIso);
     var tempCidade = getTempCidadeEfetiva(tech, diaKey, dataIso);
@@ -942,23 +1029,35 @@
       if(diaData.outras) return { cls: "outras", label: "Outras atividades" };
       var horario = horarioEfetivo(tech, diaData);
       if(!horario.inicio || !horario.fim) return { cls: "empty", label: "—" };
-      return { cls: setorClass(tech), label: horario.inicio + "–" + horario.fim };
+      var setorEfetivo = getSetorEfetivo(tech, dataIso);
+      if(viewingSetor && setorEfetivo !== viewingSetor){
+        return { cls: "temp-away", label: "Atuação em " + setorEfetivo, sub: horario.inicio + "–" + horario.fim };
+      }
+      return { cls: setorClass(tech, dataIso), label: horario.inicio + "–" + horario.fim };
     } else {
-      // linha de convidado (alocação temporária) na cidade viewingCidade
+      // linha de convidado: outra cidade (alocação temporária) ou, se for a mesma cidade,
+      // outro setor (remanejamento de função só naquele dia)
       if(tech.status === "ferias" && dateInRange(weekDate, tech.feriasInicio, tech.feriasFim)){
         return { cls: "ferias", label: "Férias" };
       }
-      if(tempCidade !== viewingCidade) return { cls: "empty", label: "—" };
+      if(tech.cidade === viewingCidade){
+        if(getSetorEfetivo(tech, dataIso) !== viewingSetor) return { cls: "empty", label: "—" };
+      } else {
+        if(tempCidade !== viewingCidade) return { cls: "empty", label: "—" };
+      }
+      if(diaData.folga || diaData.atestado || diaData.outras || ehFolgaPadraoNaoEditado(tech, diaKey, dataIso, weekDate, diaData)){
+        return { cls: "empty", label: "—" };
+      }
       var h2 = horarioEfetivo(tech, diaData);
       if(!h2.inicio || !h2.fim) return { cls: "empty", label: "—" };
-      return { cls: "temp-here " + setorClass(tech), label: h2.inicio + "–" + h2.fim };
+      return { cls: "temp-here " + setorClass(tech, dataIso), label: h2.inicio + "–" + h2.fim };
     }
   }
 
   // Técnico foi auxiliar (duplado) de alguém em pelo menos um dia da semana exibida, na cidade dele
   function techEhAuxiliarNaSemana(tech, cidade){
     for(var idx=0; idx<DIAS.length; idx++){
-      var cell = getCell(tech, DIAS[idx], cidade, true);
+      var cell = getCell(tech, DIAS[idx], cidade, true, weekDates[idx], tech.setor);
       if(getDuplaSub(tech, DIAS[idx], weekDates[idx], cell.cls) === "Duplado") return true;
     }
     return false;
@@ -968,6 +1067,16 @@
   function techEhConvidadoNaSemana(tech, cidade){
     for(var idx=0; idx<DIAS.length; idx++){
       if(getTempCidadeEfetiva(tech, DIAS[idx], isoDate(weekDates[idx])) === cidade) return true;
+    }
+    return false;
+  }
+
+  // Técnico foi remanejado (por exceção do dia) pra este setor em pelo menos um dia da semana exibida,
+  // sendo esse setor diferente do dele cadastrado
+  function techEhConvidadoDeSetorNaSemana(tech, setor){
+    if(ehDoSetor(tech, setor)) return false;
+    for(var idx=0; idx<DIAS.length; idx++){
+      if(getSetorEfetivo(tech, isoDate(weekDates[idx])) === setor) return true;
     }
     return false;
   }
@@ -1012,7 +1121,7 @@
     container.appendChild(wh);
   }
 
-  function renderTechRow(tech, cidade, isHome, container){
+  function renderTechRow(tech, cidade, isHome, container, viewingSetor){
     var row = document.createElement("div");
     row.className = "tech-row";
 
@@ -1028,7 +1137,7 @@
     var dayCards = document.createElement("div");
     dayCards.className = "day-cards";
     DIAS.forEach(function(dia, idx){
-      var cell = getCell(tech, dia, cidade, isHome);
+      var cell = getCell(tech, dia, cidade, isHome, weekDates[idx], viewingSetor);
       var feriado = getFeriado(weekDates[idx]);
       var duplaSub = getDuplaSub(tech, dia, weekDates[idx], cell.cls);
       var card = document.createElement("div");
@@ -1068,15 +1177,17 @@
     GRUPOS_SETOR.forEach(function(g){
       var homeDoSetor = grupo.home.filter(function(t){ return ehDoSetor(t, g.setor); });
       var guestsDoSetor = grupo.guests.filter(function(t){ return ehDoSetor(t, g.setor); });
-      if(homeDoSetor.length === 0 && guestsDoSetor.length === 0) return;
+      var convidadosDeSetor = grupo.home.filter(function(t){ return techEhConvidadoDeSetorNaSemana(t, g.setor); });
+      if(homeDoSetor.length === 0 && guestsDoSetor.length === 0 && convidadosDeSetor.length === 0) return;
 
       var subTitle = document.createElement("h3");
       subTitle.className = "setor-heading";
       subTitle.textContent = g.titulo;
       section.appendChild(subTitle);
 
-      homeDoSetor.forEach(function(t){ renderTechRow(t, cidade, true, section); });
-      guestsDoSetor.forEach(function(t){ renderTechRow(t, cidade, false, section); });
+      homeDoSetor.forEach(function(t){ renderTechRow(t, cidade, true, section, g.setor); });
+      guestsDoSetor.forEach(function(t){ renderTechRow(t, cidade, false, section, g.setor); });
+      convidadosDeSetor.forEach(function(t){ renderTechRow(t, cidade, false, section, g.setor); });
     });
 
     container.appendChild(section);
@@ -1127,6 +1238,119 @@
   document.getElementById("semanaHojeBtn").addEventListener("click", function(){
     weekOffset = 0;
     render();
+  });
+
+  // ---------- Calendário mensal (quantidade de equipes ativas por dia) ----------
+  var viewMode = "semana"; // "semana" | "mes"
+  var mesOffset = 0;
+
+  // Conta quantas equipes estão ativas numa data: cada dupla (principal + auxiliar) conta como
+  // uma equipe só; quem está sozinho ou deslocado temporariamente conta como uma equipe própria.
+  function contarEquipesAtivasNoDia(data){
+    var diaKey = DIAS[(data.getDay() + 6) % 7];
+    var total = 0;
+    techs.forEach(function(tech){
+      var cell = getCell(tech, diaKey, tech.cidade, true, data);
+      if(cell.cls === "instalador" || cell.cls === "manutencao"){
+        if(getDuplaSub(tech, diaKey, data, cell.cls) === "Duplado") return;
+        total += 1;
+      } else if(cell.cls === "temp-away"){
+        total += 1;
+      }
+    });
+    return total;
+  }
+
+  function renderCalendarioMensal(){
+    var container = document.getElementById("calendarioContainer");
+    container.innerHTML = "";
+
+    var hoje = new Date();
+    var base = new Date(hoje.getFullYear(), hoje.getMonth() + mesOffset, 1);
+    var ano = base.getFullYear();
+    var mes = base.getMonth();
+
+    var nav = document.createElement("div");
+    nav.className = "calendario-nav";
+    var btnAnterior = document.createElement("button");
+    btnAnterior.className = "btn btn-secondary";
+    btnAnterior.textContent = "◀";
+    btnAnterior.addEventListener("click", function(){ mesOffset -= 1; renderCalendarioMensal(); });
+    var titulo = document.createElement("span");
+    titulo.className = "calendario-titulo";
+    titulo.textContent = MESES[mes].charAt(0).toUpperCase() + MESES[mes].slice(1) + " de " + ano;
+    var btnProximo = document.createElement("button");
+    btnProximo.className = "btn btn-secondary";
+    btnProximo.textContent = "▶";
+    btnProximo.addEventListener("click", function(){ mesOffset += 1; renderCalendarioMensal(); });
+    nav.appendChild(btnAnterior);
+    nav.appendChild(titulo);
+    nav.appendChild(btnProximo);
+    if(mesOffset !== 0){
+      var btnHoje = document.createElement("button");
+      btnHoje.className = "btn btn-secondary";
+      btnHoje.textContent = "Mês atual";
+      btnHoje.addEventListener("click", function(){ mesOffset = 0; renderCalendarioMensal(); });
+      nav.appendChild(btnHoje);
+    }
+    container.appendChild(nav);
+
+    var grid = document.createElement("div");
+    grid.className = "calendario-grid";
+    ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"].forEach(function(l){
+      var wd = document.createElement("div");
+      wd.className = "calendario-wd";
+      wd.textContent = l;
+      grid.appendChild(wd);
+    });
+
+    var primeiroDiaSemana = (new Date(ano, mes, 1).getDay() + 6) % 7;
+    for(var i=0;i<primeiroDiaSemana;i++){
+      var vazio = document.createElement("div");
+      vazio.className = "calendario-dia vazio";
+      grid.appendChild(vazio);
+    }
+
+    var totalDias = new Date(ano, mes+1, 0).getDate();
+    for(var d=1; d<=totalDias; d++){
+      var data = new Date(ano, mes, d);
+      var count = contarEquipesAtivasNoDia(data);
+      var feriado = getFeriado(data);
+      var cel = document.createElement("div");
+      cel.className = "calendario-dia" + (feriado ? " feriado" : "") + (count === 0 ? " zero" : "");
+      cel.innerHTML =
+        '<div class="calendario-num">' + d + '</div>' +
+        (feriado ? '<div class="calendario-feriado-tag" title="' + escapeHtml(feriado) + '">Feriado</div>' : "") +
+        '<div class="calendario-count">' + count + '</div>' +
+        '<div class="calendario-count-label">equipe' + (count === 1 ? "" : "s") + '</div>';
+      grid.appendChild(cel);
+    }
+    container.appendChild(grid);
+  }
+
+  function atualizarViewMode(){
+    var emMes = viewMode === "mes";
+    document.getElementById("toggleCalendarioBtn").textContent = emMes ? "📋 Ver escala semanal" : "📅 Calendário mensal";
+    document.getElementById("semanaAnteriorBtn").classList.toggle("hidden", emMes);
+    document.getElementById("semanaProximaBtn").classList.toggle("hidden", emMes);
+    document.getElementById("periodoLabel").classList.toggle("hidden", emMes);
+    document.getElementById("semanaHojeBtn").classList.toggle("hidden", emMes || weekOffset === 0);
+    document.getElementById("exportDiaSelect").classList.toggle("hidden", emMes);
+    document.getElementById("exportarBtn").classList.toggle("hidden", emMes);
+    document.getElementById("cityTabs").classList.toggle("hidden", emMes);
+    document.getElementById("scheduleContainer").classList.toggle("hidden", emMes);
+    document.getElementById("legendaTurnos").classList.toggle("hidden", emMes);
+    document.getElementById("calendarioContainer").classList.toggle("hidden", !emMes);
+    if(emMes){
+      renderCalendarioMensal();
+    } else {
+      render();
+    }
+  }
+
+  document.getElementById("toggleCalendarioBtn").addEventListener("click", function(){
+    viewMode = viewMode === "semana" ? "mes" : "semana";
+    atualizarViewMode();
   });
 
   // ---------- Modal técnico ----------
@@ -1422,6 +1646,24 @@
     select.value = valorAtual;
   }
 
+  function fillDaySetorSelect(select, tech, dataIso){
+    select.innerHTML = "";
+    var optPadrao = document.createElement("option");
+    optPadrao.value = "__padrao__";
+    optPadrao.textContent = "Padrão (" + tech.setor + ")";
+    select.appendChild(optPadrao);
+
+    var alternado = tech.setor === "Manutenção" ? "Instalador" : "Manutenção";
+    var optAlternado = document.createElement("option");
+    optAlternado.value = alternado;
+    optAlternado.textContent = alternado + " só neste dia";
+    select.appendChild(optAlternado);
+
+    var exc = tech.excecoes && tech.excecoes[dataIso];
+    var valorAtual = (exc && exc.setorOverride) ? exc.setorOverride : "__padrao__";
+    select.value = valorAtual;
+  }
+
   function openDayModal(techId, dia, dataIso){
     var tech = getTech(techId);
     if(!tech) return;
@@ -1440,6 +1682,7 @@
     document.getElementById("dayOutras").checked = !!horario.outras;
     fillDayDuplaSelect(document.getElementById("dayDupla"), tech, dataIso);
     fillDayTempCidadeSelect(document.getElementById("dayTempCidade"), tech, dia, dataIso);
+    fillDaySetorSelect(document.getElementById("daySetor"), tech, dataIso);
     updateDayInputsState();
     document.getElementById("dayModal").classList.remove("hidden");
   }
@@ -1461,6 +1704,7 @@
     var custom = document.getElementById("dayCustom").checked;
     var duplaSelVal = document.getElementById("dayDupla").value;
     var tempCidadeSelVal = document.getElementById("dayTempCidade").value;
+    var setorSelVal = document.getElementById("daySetor").value;
     var novaExcecao = {
       custom: custom,
       inicio: custom ? document.getElementById("dayInicio").value : "",
@@ -1474,6 +1718,9 @@
     }
     if(tempCidadeSelVal !== "__padrao__"){
       novaExcecao.tempCidadeOverride = tempCidadeSelVal;
+    }
+    if(setorSelVal !== "__padrao__"){
+      novaExcecao.setorOverride = setorSelVal;
     }
     if(!tech.excecoes) tech.excecoes = {};
     tech.excecoes[currentDataIso] = novaExcecao;
@@ -1749,10 +1996,10 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     }).join('') + '</div>';
   }
 
-  function gerarLinhaTecnicoHTML(tech, cidade, isHome, diasIdx){
+  function gerarLinhaTecnicoHTML(tech, cidade, isHome, diasIdx, viewingSetor){
     var cells = diasIdx.map(function(idx){
       var dia = DIAS[idx];
-      var cell = getCell(tech, dia, cidade, isHome);
+      var cell = getCell(tech, dia, cidade, isHome, weekDates[idx], viewingSetor);
       var feriado = getFeriado(weekDates[idx]);
       var duplaSub = getDuplaSub(tech, dia, weekDates[idx], cell.cls);
       var cls = "day-card " + cell.cls + (feriado ? " feriado-day" : "");
@@ -1804,28 +2051,41 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
   function techEhAuxiliarNosDiasExportados(tech, cidade, diasIdx){
     for(var i=0; i<diasIdx.length; i++){
       var idx = diasIdx[i];
-      var cell = getCell(tech, DIAS[idx], cidade, true);
+      var cell = getCell(tech, DIAS[idx], cidade, true, weekDates[idx], tech.setor);
       if(getDuplaSub(tech, DIAS[idx], weekDates[idx], cell.cls) === "Duplado") return true;
     }
     return false;
   }
 
-  function gerarGrupoSetorHTML(titulo, homeTechs, guestTechs, cidade, diasIdx){
+  // Técnico foi remanejado (exceção do dia) pra este setor em pelo menos um dos dias sendo exportados
+  function techEhConvidadoDeSetorNosDiasExportados(tech, setor, diasIdx){
+    if(ehDoSetor(tech, setor)) return false;
+    for(var i=0; i<diasIdx.length; i++){
+      if(getSetorEfetivo(tech, isoDate(weekDates[diasIdx[i]])) === setor) return true;
+    }
+    return false;
+  }
+
+  function gerarGrupoSetorHTML(titulo, homeTechs, guestTechs, cidade, diasIdx, viewingSetor){
     if(homeTechs.length === 0 && guestTechs.length === 0) return "";
-    var rows = homeTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx); }).join("") +
-               guestTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx); }).join("");
+    var rows = homeTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx, viewingSetor); }).join("") +
+               guestTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx, viewingSetor); }).join("");
     return '<h3 class="setor-heading">' + escapeHtml(titulo) + '</h3><div class="rows">' + rows + '</div>';
   }
 
   function gerarSecaoCidadeHTML(cidade, logoUri, diasIdx, dataTxt){
     var grupo = techsForCidade(cidade);
     var homeVisivel = grupo.home.filter(function(t){ return !techEhAuxiliarNosDiasExportados(t, cidade, diasIdx); });
-    var total = homeVisivel.length + grupo.guests.length;
+    var convidadosDeSetorPorGrupo = GRUPOS_SETOR.map(function(g){
+      return grupo.home.filter(function(t){ return techEhConvidadoDeSetorNosDiasExportados(t, g.setor, diasIdx); });
+    });
+    var total = homeVisivel.length + grupo.guests.length +
+      convidadosDeSetorPorGrupo.reduce(function(soma, lista){ return soma + lista.length; }, 0);
     if(total === 0) return "";
-    var gruposHtml = GRUPOS_SETOR.map(function(g){
+    var gruposHtml = GRUPOS_SETOR.map(function(g, i){
       var homeDoSetor = homeVisivel.filter(function(t){ return ehDoSetor(t, g.setor); });
-      var guestsDoSetor = grupo.guests.filter(function(t){ return ehDoSetor(t, g.setor); });
-      return gerarGrupoSetorHTML(g.titulo, homeDoSetor, guestsDoSetor, cidade, diasIdx);
+      var guestsDoSetor = grupo.guests.filter(function(t){ return ehDoSetor(t, g.setor); }).concat(convidadosDeSetorPorGrupo[i]);
+      return gerarGrupoSetorHTML(g.titulo, homeDoSetor, guestsDoSetor, cidade, diasIdx, g.setor);
     }).join("");
     var contagem = total === 1 ? "1 técnico" : total + " técnicos";
     return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' +
