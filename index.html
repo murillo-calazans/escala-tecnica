@@ -2058,6 +2058,16 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return false;
   }
 
+  // Técnico atua temporariamente nesta cidade em pelo menos um dos dias sendo exportados
+  // (evita mostrar, num export de um dia só, um convidado que só está alocado ali em outro dia da semana)
+  function techEhConvidadoNosDiasExportados(tech, cidade, diasIdx){
+    for(var i=0; i<diasIdx.length; i++){
+      var idx = diasIdx[i];
+      if(getTempCidadeEfetiva(tech, DIAS[idx], isoDate(weekDates[idx])) === cidade) return true;
+    }
+    return false;
+  }
+
   // Técnico foi remanejado (exceção do dia) pra este setor em pelo menos um dos dias sendo exportados
   function techEhConvidadoDeSetorNosDiasExportados(tech, setor, diasIdx){
     if(ehDoSetor(tech, setor)) return false;
@@ -2101,6 +2111,7 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
 
   function gerarSecaoCidadeHTML(cidade, logoUri, diasIdx, dataTxt){
     var grupo = techsForCidade(cidade);
+    var guestsExportaveis = grupo.guests.filter(function(t){ return techEhConvidadoNosDiasExportados(t, cidade, diasIdx); });
     var homeElegivel = grupo.home.filter(function(t){
       return !techEhAuxiliarNosDiasExportados(t, cidade, diasIdx) && !techEhOcultavelHomeExportado(t, diasIdx);
     });
@@ -2110,13 +2121,13 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     var convidadosDeSetorPorGrupo = GRUPOS_SETOR.map(function(g){
       return grupo.home.filter(function(t){ return techEhConvidadoDeSetorNosDiasExportados(t, g.setor, diasIdx); });
     });
-    var totalAtivo = homeVisivel.length + grupo.guests.length +
+    var totalAtivo = homeVisivel.length + guestsExportaveis.length +
       convidadosDeSetorPorGrupo.reduce(function(soma, lista){ return soma + lista.length; }, 0);
     var totalGeral = totalAtivo + homeDeFolga.length + homeDeFerias.length;
     if(totalGeral === 0) return "";
     var gruposHtml = GRUPOS_SETOR.map(function(g, i){
       var homeDoSetor = homeVisivel.filter(function(t){ return ehDoSetor(t, g.setor); });
-      var guestsDoSetor = grupo.guests.filter(function(t){ return ehDoSetor(t, g.setor); }).concat(convidadosDeSetorPorGrupo[i]);
+      var guestsDoSetor = guestsExportaveis.filter(function(t){ return ehDoSetor(t, g.setor); }).concat(convidadosDeSetorPorGrupo[i]);
       var folgaDoSetor = homeDeFolga.filter(function(t){ return ehDoSetor(t, g.setor); });
       var feriasDoSetor = homeDeFerias.filter(function(t){ return ehDoSetor(t, g.setor); });
       return gerarGrupoSetorHTML(g.titulo, homeDoSetor, guestsDoSetor, cidade, diasIdx, g.setor, folgaDoSetor, feriasDoSetor);
