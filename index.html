@@ -2250,39 +2250,61 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     };
   }
 
+  // Layout em tabela (table-layout:fixed): garante que as colunas dos dias fiquem sempre
+  // alinhadas entre as linhas, com o mês inteiro (até 31 dias) coubendo na largura da
+  // página, ao contrário de uma linha flexível (que desalinha e embaralha o texto quando
+  // o conteúdo não cabe).
   var MONTHLY_EXTRA_CSS = `
+.mreport{overflow-x:auto;}
 .report-heading{display:flex;align-items:baseline;gap:10px;margin:0 0 16px 2px;}
 .report-heading h2{font-size:22px;font-weight:700;letter-spacing:.01em;margin:0;}
 .report-heading .count{font-size:12px;color:var(--text-muted);background:var(--surface-sunken);border:1px solid var(--border);padding:2px 9px;border-radius:999px;font-weight:600;}
-.mrow{display:flex;align-items:stretch;gap:10px;}
-.mstrip{display:flex;gap:3px;flex:0 0 auto;}
-.mday{
-  flex:0 0 24px;width:24px;background:var(--surface-sunken);border:1px solid var(--border);border-radius:6px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:4px 0;
+.mtable{width:100%;border-collapse:separate;border-spacing:3px 4px;table-layout:fixed;margin-bottom:6px;}
+.mtable col.mcol-name{width:180px;}
+.mtable col.mcol-summary{width:180px;}
+.mtable thead th{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;color:var(--text-faint);
+  text-align:center;padding:2px 0 4px;font-variant-numeric:tabular-nums;
 }
-.mday .n{font-family:"IBM Plex Mono",monospace;font-size:8px;color:var(--text-faint);line-height:1;}
-.mday .c{font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:9px;letter-spacing:.02em;line-height:1;}
-.mday.folga{border-style:dashed;}
-.mday.instalador{background:var(--instalador-bg);border-color:transparent;}
-.mday.instalador .n{color:var(--instalador-text);opacity:.65;}
-.mday.instalador .c{color:var(--instalador-text);}
-.mday.manutencao{background:var(--manutencao-bg);border-color:transparent;}
-.mday.manutencao .n{color:var(--manutencao-text);opacity:.65;}
-.mday.manutencao .c{color:var(--manutencao-text);}
-.mday.atestado{background:var(--atestado-bg);border-color:transparent;}
-.mday.atestado .n{color:var(--atestado-text);opacity:.65;}
-.mday.atestado .c{color:var(--atestado-text);}
-.mday.ferias{background:var(--ferias-bg);border-color:transparent;}
-.mday.ferias .n{color:var(--ferias-text);opacity:.65;}
-.mday.ferias .c{color:var(--ferias-text);}
-.mday.outras{background:var(--outras-bg);border-color:transparent;}
-.mday.outras .n{color:var(--outras-text);opacity:.65;}
-.mday.outras .c{color:var(--outras-text);}
-.mday.temp{border-style:dashed;border-color:currentColor;}
-.msummary{flex:1 1 auto;display:flex;align-items:center;font-size:12.5px;color:var(--text-muted);padding-left:4px;white-space:nowrap;}
-.msummary b{color:var(--text);font-weight:700;}
-@media print{ @page{ size:A4 landscape; margin:10mm; } }
+.mtable thead th.mth-side{font-family:"IBM Plex Sans",sans-serif;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:left;color:var(--text-muted);}
+.mtd-name{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:7px 12px;box-shadow:var(--shadow);}
+.mtd-name .row{display:flex;align-items:center;gap:9px;}
+.mtd-name .avatar{
+  flex:0 0 30px;width:30px;height:30px;border-radius:50%;background:var(--surface-sunken);color:var(--accent);
+  border:1px solid var(--border);display:flex;align-items:center;justify-content:center;
+  font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:12px;
+}
+.mtd-name .nome{font-weight:700;font-size:13.5px;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.mtd-name .setor{font-size:11px;color:var(--text-muted);margin-top:1px;}
+.mday{
+  background:var(--surface-sunken);border-radius:6px;text-align:center;vertical-align:middle;
+  font-family:"Barlow Condensed",sans-serif;font-weight:700;font-size:10px;letter-spacing:.02em;
+  color:var(--text-faint);padding:9px 1px;
+}
+.mday.folga{color:var(--folga-text);}
+.mday.instalador{background:var(--instalador-bg);color:var(--instalador-text);}
+.mday.manutencao{background:var(--manutencao-bg);color:var(--manutencao-text);}
+.mday.atestado{background:var(--atestado-bg);color:var(--atestado-text);}
+.mday.ferias{background:var(--ferias-bg);color:var(--ferias-text);}
+.mday.outras{background:var(--outras-bg);color:var(--outras-text);}
+.mday.temp{box-shadow:inset 0 0 0 2px currentColor;}
+.mtd-summary{font-size:11.5px;color:var(--text-muted);padding-left:8px;line-height:1.45;}
+.mtd-summary b{color:var(--text);font-weight:700;}
+@media print{
+  @page{ size:A4 landscape; margin:8mm; }
+  .mtable{ font-size:9px; }
+}
 `;
+
+  function gerarColgroupMensalHTML(dias){
+    var cols = dias.map(function(){ return "<col>"; }).join("");
+    return '<colgroup><col class="mcol-name">' + cols + '<col class="mcol-summary"></colgroup>';
+  }
+
+  function gerarCabecalhoMensalHTML(dias){
+    var ths = dias.map(function(d){ return "<th>" + d.getDate() + "</th>"; }).join("");
+    return '<thead><tr><th class="mth-side">Colaborador</th>' + ths + '<th class="mth-side">Resumo</th></tr></thead>';
+  }
 
   function gerarLinhaMensalHTML(tech, dias){
     var cidadeCount = {};
@@ -2291,18 +2313,17 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
       var diaKey = diaKeyFromDate(d);
       var dataIso = isoDate(d);
       var info = getResumoDiaMensal(tech, diaKey, dataIso, d);
-      var n = d.getDate();
       if(info.kind === "folga"){
-        return '<div class="mday folga"><span class="n">' + n + '</span></div>';
+        return '<td class="mday folga">&middot;</td>';
       }
       if(info.kind === "atestado" || info.kind === "ferias" || info.kind === "outras"){
         statusCount[info.kind]++;
         var code = info.kind === "atestado" ? "AT" : (info.kind === "ferias" ? "FÉ" : "OU");
-        return '<div class="mday ' + info.kind + '"><span class="n">' + n + '</span><span class="c">' + code + '</span></div>';
+        return '<td class="mday ' + info.kind + '">' + code + '</td>';
       }
       cidadeCount[info.cidade] = (cidadeCount[info.cidade] || 0) + 1;
       var cls = "mday " + info.kind + (info.temp ? " temp" : "");
-      return '<div class="' + cls + '"><span class="n">' + n + '</span><span class="c">' + escapeHtml(cidadeAbrev(info.cidade)) + '</span></div>';
+      return '<td class="' + cls + '">' + escapeHtml(cidadeAbrev(info.cidade)) + '</td>';
     }).join("");
 
     var partesResumo = Object.keys(cidadeCount)
@@ -2313,17 +2334,17 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     if(statusCount.outras) partesResumo.push("Outras ativ. <b>" + statusCount.outras + "d</b>");
     var resumo = partesResumo.length ? partesResumo.join(" &middot; ") : "Sem dias trabalhados";
 
-    return '<div class="mrow">' +
-      '<div class="tech-name-card">' +
+    return '<tr>' +
+      '<td class="mtd-name"><div class="row">' +
         '<div class="avatar">' + escapeHtml(getIniciais(tech.nome)) + '</div>' +
         '<div class="info">' +
           '<div class="nome">' + escapeHtml(tech.nome) + '</div>' +
           '<div class="setor">' + escapeHtml(tech.setor) + '</div>' +
         '</div>' +
-      '</div>' +
-      '<div class="mstrip">' + cellsHtml + '</div>' +
-      '<div class="msummary">' + resumo + '</div>' +
-    '</div>';
+      '</div></td>' +
+      cellsHtml +
+      '<td class="mtd-summary">' + resumo + '</td>' +
+    '</tr>';
   }
 
   function gerarHtmlRelatorioMensal(anoMesStr){
@@ -2331,13 +2352,16 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     var partes = anoMesStr.split("-");
     var tituloMes = MESES[parseInt(partes[1], 10) - 1] + " de " + partes[0];
     var logoUri = getLogoDataUri();
+    var colgroupHtml = gerarColgroupMensalHTML(dias);
+    var cabecalhoHtml = gerarCabecalhoMensalHTML(dias);
 
     var gruposHtml = GRUPOS_SETOR.map(function(g){
       var techsDoSetor = techs.filter(function(t){ return ehDoSetor(t, g.setor); })
         .sort(function(a, b){ return a.nome.localeCompare(b.nome, "pt-BR"); });
       if(techsDoSetor.length === 0) return "";
       var rows = techsDoSetor.map(function(t){ return gerarLinhaMensalHTML(t, dias); }).join("");
-      return '<h3 class="setor-heading">' + escapeHtml(g.titulo) + '</h3><div class="rows">' + rows + '</div>';
+      return '<h3 class="setor-heading">' + escapeHtml(g.titulo) + '</h3>' +
+        '<table class="mtable">' + colgroupHtml + cabecalhoHtml + '<tbody>' + rows + '</tbody></table>';
     }).join("");
 
     return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
@@ -2353,7 +2377,7 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
         '<div class="topbar-titles"><span class="topbar-title">Relatório Mensal de Escala</span>' +
         '<span class="topbar-date">' + escapeHtml(tituloMes) + '</span></div></div>' +
       '<div class="report-heading"><h2>Relatório Mensal</h2><span class="count">' + techs.length + ' colaboradores</span></div>' +
-      gruposHtml +
+      '<div class="mreport">' + gruposHtml + '</div>' +
       gerarLegendaHTML() +
       '</body></html>';
   }
