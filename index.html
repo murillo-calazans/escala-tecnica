@@ -1045,7 +1045,7 @@
       if(tech.cidade === viewingCidade){
         if(getSetorEfetivo(tech, dataIso) !== viewingSetor) return { cls: "empty", label: "—" };
       } else {
-        if(tempCidade !== viewingCidade) return { cls: "empty", label: "—" };
+        if(tempCidade !== viewingCidade || getSetorEfetivo(tech, dataIso) !== viewingSetor) return { cls: "empty", label: "—" };
       }
       if(diaData.folga || diaData.atestado || diaData.outras || ehFolgaPadraoNaoEditado(tech, diaKey, dataIso, weekDate, diaData)){
         return { cls: "empty", label: "—" };
@@ -1069,6 +1069,17 @@
   function techEhConvidadoNaSemana(tech, cidade){
     for(var idx=0; idx<DIAS.length; idx++){
       if(getTempCidadeEfetiva(tech, DIAS[idx], isoDate(weekDates[idx])) === cidade) return true;
+    }
+    return false;
+  }
+
+  // Técnico atua como convidado nesta cidade, nesse setor especificamente (considerando o setor
+  // efetivo de cada dia — que pode ter sido remanejado ali, mesmo sendo de outro setor cadastrado),
+  // em pelo menos um dia da semana exibida
+  function techEhConvidadoDoSetorNaSemana(tech, cidade, setor){
+    for(var idx=0; idx<DIAS.length; idx++){
+      var dataIso = isoDate(weekDates[idx]);
+      if(getTempCidadeEfetiva(tech, DIAS[idx], dataIso) === cidade && getSetorEfetivo(tech, dataIso) === setor) return true;
     }
     return false;
   }
@@ -1178,7 +1189,7 @@
 
     GRUPOS_SETOR.forEach(function(g){
       var homeDoSetor = grupo.home.filter(function(t){ return ehDoSetor(t, g.setor); });
-      var guestsDoSetor = grupo.guests.filter(function(t){ return ehDoSetor(t, g.setor); });
+      var guestsDoSetor = grupo.guests.filter(function(t){ return techEhConvidadoDoSetorNaSemana(t, cidade, g.setor); });
       var convidadosDeSetor = grupo.home.filter(function(t){ return techEhConvidadoDeSetorNaSemana(t, g.setor); });
       if(homeDoSetor.length === 0 && guestsDoSetor.length === 0 && convidadosDeSetor.length === 0) return;
 
@@ -2070,6 +2081,17 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return false;
   }
 
+  // Técnico atua como convidado nesta cidade, nesse setor especificamente (considerando o setor
+  // efetivo de cada dia), em pelo menos um dos dias sendo exportados
+  function techEhConvidadoDoSetorNosDiasExportados(tech, cidade, setor, diasIdx){
+    for(var i=0; i<diasIdx.length; i++){
+      var idx = diasIdx[i];
+      var dataIso = isoDate(weekDates[idx]);
+      if(getTempCidadeEfetiva(tech, DIAS[idx], dataIso) === cidade && getSetorEfetivo(tech, dataIso) === setor) return true;
+    }
+    return false;
+  }
+
   // Técnico foi remanejado (exceção do dia) pra este setor em pelo menos um dos dias sendo exportados
   function techEhConvidadoDeSetorNosDiasExportados(tech, setor, diasIdx){
     if(ehDoSetor(tech, setor)) return false;
@@ -2133,7 +2155,7 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     if(totalGeral === 0) return "";
     var gruposHtml = GRUPOS_SETOR.map(function(g, i){
       var homeDoSetor = homeVisivel.filter(function(t){ return ehDoSetor(t, g.setor); });
-      var guestsDoSetor = guestsExportaveis.filter(function(t){ return ehDoSetor(t, g.setor); }).concat(convidadosDeSetorPorGrupo[i]);
+      var guestsDoSetor = guestsExportaveis.filter(function(t){ return techEhConvidadoDoSetorNosDiasExportados(t, cidade, g.setor, diasIdx); }).concat(convidadosDeSetorPorGrupo[i]);
       var folgaDoSetor = homeDeFolga.filter(function(t){ return ehDoSetor(t, g.setor); });
       var feriasDoSetor = homeDeFerias.filter(function(t){ return ehDoSetor(t, g.setor); });
       var outrasDoSetor = homeDeOutras.filter(function(t){ return ehDoSetor(t, g.setor); });
