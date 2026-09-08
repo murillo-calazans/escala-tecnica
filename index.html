@@ -1043,7 +1043,7 @@
         return { cls: "ferias", label: "Férias" };
       }
       if(tech.cidade === viewingCidade){
-        if(getSetorEfetivo(tech, dataIso) !== viewingSetor) return { cls: "empty", label: "—" };
+        if(tempCidade || getSetorEfetivo(tech, dataIso) !== viewingSetor) return { cls: "empty", label: "—" };
       } else {
         if(tempCidade !== viewingCidade || getSetorEfetivo(tech, dataIso) !== viewingSetor) return { cls: "empty", label: "—" };
       }
@@ -1085,11 +1085,14 @@
   }
 
   // Técnico foi remanejado (por exceção do dia) pra este setor em pelo menos um dia da semana exibida,
-  // sendo esse setor diferente do dele cadastrado
+  // sendo esse setor diferente do dele cadastrado e permanecendo na cidade de origem naquele dia
+  // (se ele também foi alocado pra outra cidade nesse dia, quem mostra isso é o convidado da outra cidade)
   function techEhConvidadoDeSetorNaSemana(tech, setor){
     if(ehDoSetor(tech, setor)) return false;
     for(var idx=0; idx<DIAS.length; idx++){
-      if(getSetorEfetivo(tech, isoDate(weekDates[idx])) === setor) return true;
+      var dataIso = isoDate(weekDates[idx]);
+      if(getTempCidadeEfetiva(tech, DIAS[idx], dataIso)) continue;
+      if(getSetorEfetivo(tech, dataIso) === setor) return true;
     }
     return false;
   }
@@ -2092,11 +2095,15 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return false;
   }
 
-  // Técnico foi remanejado (exceção do dia) pra este setor em pelo menos um dos dias sendo exportados
+  // Técnico foi remanejado (exceção do dia) pra este setor em pelo menos um dos dias sendo exportados,
+  // permanecendo na cidade de origem naquele dia (senão quem mostra é o convidado da outra cidade)
   function techEhConvidadoDeSetorNosDiasExportados(tech, setor, diasIdx){
     if(ehDoSetor(tech, setor)) return false;
     for(var i=0; i<diasIdx.length; i++){
-      if(getSetorEfetivo(tech, isoDate(weekDates[diasIdx[i]])) === setor) return true;
+      var idx = diasIdx[i];
+      var dataIso = isoDate(weekDates[idx]);
+      if(getTempCidadeEfetiva(tech, DIAS[idx], dataIso)) continue;
+      if(getSetorEfetivo(tech, dataIso) === setor) return true;
     }
     return false;
   }
