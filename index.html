@@ -2107,11 +2107,15 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return false;
   }
 
-  // Técnico ficou remanejado pra fora do setor dele em TODOS os dias exportados — já aparece
-  // como convidado no grupo de destino, então some da lista do grupo original.
+  // Técnico ficou fora da cidade (alocado em outra) ou remanejado pra fora do setor dele em TODOS
+  // os dias exportados — já aparece em outro grupo/cidade, então some da lista do grupo original.
   function techEhOcultavelHomeExportado(tech, diasIdx){
     for(var i=0; i<diasIdx.length; i++){
-      if(getSetorEfetivo(tech, isoDate(weekDates[diasIdx[i]])) === tech.setor) return false;
+      var idx = diasIdx[i];
+      var dataIso = isoDate(weekDates[idx]);
+      if(getTempCidadeEfetiva(tech, DIAS[idx], dataIso)) continue;
+      if(getSetorEfetivo(tech, dataIso) !== tech.setor) continue;
+      return false;
     }
     return true;
   }
@@ -2127,13 +2131,14 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return true;
   }
 
-  function gerarGrupoSetorHTML(titulo, homeTechs, guestTechs, cidade, diasIdx, viewingSetor, folgaTechs, feriasTechs, outrasTechs){
-    if(homeTechs.length === 0 && guestTechs.length === 0 && folgaTechs.length === 0 && feriasTechs.length === 0 && outrasTechs.length === 0) return "";
+  function gerarGrupoSetorHTML(titulo, homeTechs, guestTechs, cidade, diasIdx, viewingSetor, folgaTechs, feriasTechs, outrasTechs, atestadoTechs){
+    if(homeTechs.length === 0 && guestTechs.length === 0 && folgaTechs.length === 0 && feriasTechs.length === 0 && outrasTechs.length === 0 && atestadoTechs.length === 0) return "";
     var rows = homeTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, true, diasIdx, viewingSetor); }).join("") +
                guestTechs.map(function(t){ return gerarLinhaTecnicoHTML(t, cidade, false, diasIdx, viewingSetor); }).join("");
     var footer =
       (folgaTechs.length ? '<div class="folga-footer">De folga: ' + folgaTechs.map(function(t){ return escapeHtml(t.nome); }).join(", ") + '</div>' : '') +
       (feriasTechs.length ? '<div class="folga-footer">De férias: ' + feriasTechs.map(function(t){ return escapeHtml(t.nome); }).join(", ") + '</div>' : '') +
+      (atestadoTechs.length ? '<div class="folga-footer">De atestado: ' + atestadoTechs.map(function(t){ return escapeHtml(t.nome); }).join(", ") + '</div>' : '') +
       (outrasTechs.length ? '<div class="folga-footer">Em outras atividades: ' + outrasTechs.map(function(t){ return escapeHtml(t.nome); }).join(", ") + '</div>' : '');
     return '<h3 class="setor-heading">' + escapeHtml(titulo) + '</h3>' +
       (rows ? '<div class="rows">' + rows + '</div>' : '') +
@@ -2149,15 +2154,16 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     var homeDeFolga = homeElegivel.filter(function(t){ return techEstaComStatusTodosDiasExportados(t, diasIdx, "folga"); });
     var homeDeFerias = homeElegivel.filter(function(t){ return techEstaComStatusTodosDiasExportados(t, diasIdx, "ferias"); });
     var homeDeOutras = homeElegivel.filter(function(t){ return techEstaComStatusTodosDiasExportados(t, diasIdx, "outras"); });
+    var homeDeAtestado = homeElegivel.filter(function(t){ return techEstaComStatusTodosDiasExportados(t, diasIdx, "atestado"); });
     var homeVisivel = homeElegivel.filter(function(t){
-      return homeDeFolga.indexOf(t) === -1 && homeDeFerias.indexOf(t) === -1 && homeDeOutras.indexOf(t) === -1;
+      return homeDeFolga.indexOf(t) === -1 && homeDeFerias.indexOf(t) === -1 && homeDeOutras.indexOf(t) === -1 && homeDeAtestado.indexOf(t) === -1;
     });
     var convidadosDeSetorPorGrupo = GRUPOS_SETOR.map(function(g){
       return grupo.home.filter(function(t){ return techEhConvidadoDeSetorNosDiasExportados(t, g.setor, diasIdx); });
     });
     var totalAtivo = homeVisivel.length + guestsExportaveis.length +
       convidadosDeSetorPorGrupo.reduce(function(soma, lista){ return soma + lista.length; }, 0);
-    var totalGeral = totalAtivo + homeDeFolga.length + homeDeFerias.length + homeDeOutras.length;
+    var totalGeral = totalAtivo + homeDeFolga.length + homeDeFerias.length + homeDeOutras.length + homeDeAtestado.length;
     if(totalGeral === 0) return "";
     var gruposHtml = GRUPOS_SETOR.map(function(g, i){
       var homeDoSetor = homeVisivel.filter(function(t){ return ehDoSetor(t, g.setor); });
@@ -2165,7 +2171,8 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
       var folgaDoSetor = homeDeFolga.filter(function(t){ return ehDoSetor(t, g.setor); });
       var feriasDoSetor = homeDeFerias.filter(function(t){ return ehDoSetor(t, g.setor); });
       var outrasDoSetor = homeDeOutras.filter(function(t){ return ehDoSetor(t, g.setor); });
-      return gerarGrupoSetorHTML(g.titulo, homeDoSetor, guestsDoSetor, cidade, diasIdx, g.setor, folgaDoSetor, feriasDoSetor, outrasDoSetor);
+      var atestadoDoSetor = homeDeAtestado.filter(function(t){ return ehDoSetor(t, g.setor); });
+      return gerarGrupoSetorHTML(g.titulo, homeDoSetor, guestsDoSetor, cidade, diasIdx, g.setor, folgaDoSetor, feriasDoSetor, outrasDoSetor, atestadoDoSetor);
     }).join("");
     var contagem = totalAtivo === 1 ? "1 técnico" : totalAtivo + " técnicos";
     return '<section class="city-page" data-cidade="' + escapeHtml(normalizarBusca(cidade)) + '">' +
