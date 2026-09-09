@@ -2062,12 +2062,15 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     return String(str).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   }
 
-  // Técnico é o auxiliar (duplado) de alguém em pelo menos um dos dias sendo exportados, na cidade dele.
-  // Só usado na exportação — na tela normal, o duplado continua aparecendo (só desce na lista).
-  function techEhAuxiliarNosDiasExportados(tech, cidade, diasIdx){
+  // Técnico é o auxiliar (duplado) de alguém em pelo menos um dos dias sendo exportados, nessa cidade
+  // (seja como titular de lá, seja como convidado — a dupla viaja junto). Só usado na exportação —
+  // na tela normal, o duplado continua aparecendo (só desce na lista).
+  function techEhAuxiliarNosDiasExportados(tech, cidade, diasIdx, isHome, viewingSetor){
+    var home = isHome !== false;
+    var setor = viewingSetor || tech.setor;
     for(var i=0; i<diasIdx.length; i++){
       var idx = diasIdx[i];
-      var cell = getCell(tech, DIAS[idx], cidade, true, weekDates[idx], tech.setor);
+      var cell = getCell(tech, DIAS[idx], cidade, home, weekDates[idx], setor);
       if(getDuplaSub(tech, DIAS[idx], weekDates[idx], cell.cls) === "Duplado") return true;
     }
     return false;
@@ -2161,13 +2164,20 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
     var convidadosDeSetorPorGrupo = GRUPOS_SETOR.map(function(g){
       return grupo.home.filter(function(t){ return techEhConvidadoDeSetorNosDiasExportados(t, g.setor, diasIdx); });
     });
-    var totalAtivo = homeVisivel.length + guestsExportaveis.length +
-      convidadosDeSetorPorGrupo.reduce(function(soma, lista){ return soma + lista.length; }, 0);
+    // Convidado (de outra cidade ou remanejado de setor) que é auxiliar de alguém não precisa de
+    // linha própria — a dupla já aparece via o "+ Nome" na linha do principal.
+    var guestsDoSetorPorGrupo = GRUPOS_SETOR.map(function(g, i){
+      return guestsExportaveis.filter(function(t){ return techEhConvidadoDoSetorNosDiasExportados(t, cidade, g.setor, diasIdx); })
+        .concat(convidadosDeSetorPorGrupo[i])
+        .filter(function(t){ return !techEhAuxiliarNosDiasExportados(t, cidade, diasIdx, false, g.setor); });
+    });
+    var totalAtivo = homeVisivel.length +
+      guestsDoSetorPorGrupo.reduce(function(soma, lista){ return soma + lista.length; }, 0);
     var totalGeral = totalAtivo + homeDeFolga.length + homeDeFerias.length + homeDeOutras.length + homeDeAtestado.length;
     if(totalGeral === 0) return "";
     var gruposHtml = GRUPOS_SETOR.map(function(g, i){
       var homeDoSetor = homeVisivel.filter(function(t){ return ehDoSetor(t, g.setor); });
-      var guestsDoSetor = guestsExportaveis.filter(function(t){ return techEhConvidadoDoSetorNosDiasExportados(t, cidade, g.setor, diasIdx); }).concat(convidadosDeSetorPorGrupo[i]);
+      var guestsDoSetor = guestsDoSetorPorGrupo[i];
       var folgaDoSetor = homeDeFolga.filter(function(t){ return ehDoSetor(t, g.setor); });
       var feriasDoSetor = homeDeFerias.filter(function(t){ return ehDoSetor(t, g.setor); });
       var outrasDoSetor = homeDeOutras.filter(function(t){ return ehDoSetor(t, g.setor); });
