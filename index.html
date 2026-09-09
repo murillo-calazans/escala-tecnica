@@ -1019,9 +1019,7 @@
         return { cls: "ferias", label: "Férias" };
       }
       if(tempCidade && tempCidade !== viewingCidade){
-        var hh = horarioEfetivo(tech, diaData);
-        var sub = (hh.inicio && hh.fim) ? (hh.inicio + "–" + hh.fim) : "";
-        return { cls: "temp-away", label: "Atuação em " + tempCidade, sub: sub };
+        return { cls: "empty", label: "—" };
       }
       if(ehFolgaPadraoNaoEditado(tech, diaKey, dataIso, weekDate, diaData)){
         return { cls: "folga", label: "Folga" };
@@ -1264,13 +1262,14 @@
   // uma equipe só; quem está sozinho ou deslocado temporariamente conta como uma equipe própria.
   function contarEquipesAtivasNoDia(data){
     var diaKey = DIAS[(data.getDay() + 6) % 7];
+    var dataIso = isoDate(data);
     var total = 0;
     techs.forEach(function(tech){
       var cell = getCell(tech, diaKey, tech.cidade, true, data);
       if(cell.cls === "instalador" || cell.cls === "manutencao"){
         if(getDuplaSub(tech, diaKey, data, cell.cls) === "Duplado") return;
         total += 1;
-      } else if(cell.cls === "temp-away"){
+      } else if(cell.cls === "empty" && getTempCidadeEfetiva(tech, diaKey, dataIso)){
         total += 1;
       }
     });
