@@ -930,11 +930,10 @@
   }
 
   // Papel e parceiro efetivo do técnico numa data, considerando exceção avulsa daquele dia.
-  // Dupla AVULSA (configurada no próprio card do técnico, só pra aquele dia): quem configura é o PRINCIPAL —
-  // é ele quem decidiu levar um ajudante naquele dia. O escolhido é o AUXILIAR.
-  // Dupla FIXA (campo "dupla" no cadastro do técnico): é o oposto — quem tem o campo configurado no cadastro
-  // é o AUXILIAR (cadastrado como par de outra pessoa), e quem foi escolhido é o PRINCIPAL, responsável por
-  // lançamentos de estoque, ordens de serviço etc.
+  // Em ambos os casos — dupla AVULSA (exceção do dia) ou FIXA (campo "dupla" no cadastro) — quem
+  // TEM o parceiro configurado (no próprio dia ou no próprio cadastro) é o AUXILIAR, e quem foi
+  // ESCOLHIDO é o PRINCIPAL, responsável por lançamentos de estoque, ordens de serviço etc. — é o
+  // nome dele que aparece na exportação.
   // Verdadeiro se o técnico tem uma exceção de dupla lançada nesse dia (avulsa com alguém, ou
   // "sozinho só neste dia") — nos dois casos, a dupla fixa dele fica suspensa naquele dia.
   function techTemDuplaOverrideNoDia(tech, dataIso){
@@ -947,7 +946,7 @@
     if(exc && Object.prototype.hasOwnProperty.call(exc, "duplaOverride")){
       if(!exc.duplaOverride) return null;
       var parceiroAvulsa = getTech(exc.duplaOverride);
-      return parceiroAvulsa ? { papel: "principal", parceiro: parceiroAvulsa } : null;
+      return parceiroAvulsa ? { papel: "auxiliar", parceiro: parceiroAvulsa } : null;
     }
     // Alguém escolheu este técnico como parceiro avulso hoje (substituição temporária) — isso vale
     // mais que qualquer dupla fixa, mesmo que ele (ou o parceiro fixo dele) tenha uma cadastrada.
@@ -958,7 +957,7 @@
       if(outro.id === tech.id) continue;
       var outroExc = outro.excecoes && outro.excecoes[dataIso];
       if(outroExc && Object.prototype.hasOwnProperty.call(outroExc, "duplaOverride") && outroExc.duplaOverride === tech.id){
-        return { papel: "auxiliar", parceiro: outro };
+        return { papel: "principal", parceiro: outro };
       }
     }
     // Dupla fixa (cadastrada neste técnico) — só vale se o parceiro fixo não foi reatribuído hoje
