@@ -935,6 +935,13 @@
   // Dupla FIXA (campo "dupla" no cadastro do técnico): é o oposto — quem tem o campo configurado no cadastro
   // é o AUXILIAR (cadastrado como par de outra pessoa), e quem foi escolhido é o PRINCIPAL, responsável por
   // lançamentos de estoque, ordens de serviço etc.
+  // Verdadeiro se o técnico tem uma exceção de dupla lançada nesse dia (avulsa com alguém, ou
+  // "sozinho só neste dia") — nos dois casos, a dupla fixa dele fica suspensa naquele dia.
+  function techTemDuplaOverrideNoDia(tech, dataIso){
+    var exc = tech.excecoes && tech.excecoes[dataIso];
+    return !!(exc && Object.prototype.hasOwnProperty.call(exc, "duplaOverride"));
+  }
+
   function getDuplaInfo(tech, dataIso){
     var exc = tech.excecoes && tech.excecoes[dataIso];
     if(exc && Object.prototype.hasOwnProperty.call(exc, "duplaOverride")){
@@ -942,19 +949,29 @@
       var parceiroAvulsa = getTech(exc.duplaOverride);
       return parceiroAvulsa ? { papel: "principal", parceiro: parceiroAvulsa } : null;
     }
-    if(tech.dupla){
-      var parceiroFixo = getTech(tech.dupla);
-      return parceiroFixo ? { papel: "auxiliar", parceiro: parceiroFixo } : null;
-    }
+    // Alguém escolheu este técnico como parceiro avulso hoje (substituição temporária) — isso vale
+    // mais que qualquer dupla fixa, mesmo que ele (ou o parceiro fixo dele) tenha uma cadastrada.
+    // Sem essa checagem primeiro, um auxiliar fixo "roubado" pra outra dupla no dia continuaria
+    // preso ao parceiro fixo original (e apareceria sozinho, se esse parceiro estiver de folga).
     for(var i=0;i<techs.length;i++){
       var outro = techs[i];
       if(outro.id === tech.id) continue;
       var outroExc = outro.excecoes && outro.excecoes[dataIso];
-      if(outroExc && Object.prototype.hasOwnProperty.call(outroExc, "duplaOverride")){
-        if(outroExc.duplaOverride === tech.id) return { papel: "auxiliar", parceiro: outro };
-        continue;
+      if(outroExc && Object.prototype.hasOwnProperty.call(outroExc, "duplaOverride") && outroExc.duplaOverride === tech.id){
+        return { papel: "auxiliar", parceiro: outro };
       }
-      if(outro.dupla === tech.id) return { papel: "principal", parceiro: outro };
+    }
+    // Dupla fixa (cadastrada neste técnico) — só vale se o parceiro fixo não foi reatribuído hoje
+    if(tech.dupla){
+      var parceiroFixo = getTech(tech.dupla);
+      if(parceiroFixo && !techTemDuplaOverrideNoDia(parceiroFixo, dataIso)) return { papel: "auxiliar", parceiro: parceiroFixo };
+      return null;
+    }
+    // Dupla fixa (cadastrada no outro técnico, apontando pra este) — mesma checagem de reatribuição
+    for(var j=0;j<techs.length;j++){
+      var outro2 = techs[j];
+      if(outro2.id === tech.id) continue;
+      if(outro2.dupla === tech.id && !techTemDuplaOverrideNoDia(outro2, dataIso)) return { papel: "principal", parceiro: outro2 };
     }
     return null;
   }
