@@ -505,6 +505,16 @@
   <div class="item"><span class="dot manutencao"></span> Manutenção</div>
 </div>
 
+<!-- Visão de leitura: quem não está logado só vê a escala de um dia por vez,
+     igual ao HTML exportado, com um mini calendário pra trocar de dia. -->
+<div id="visaoDiaLeitura" class="hidden">
+  <div style="display:flex; align-items:center; gap:10px; padding:14px 16px;">
+    <label for="visaoDiaInput" style="font-weight:600; font-size:13px;">Escala do dia</label>
+    <input type="date" id="visaoDiaInput">
+  </div>
+  <iframe id="visaoDiaIframe" style="width:100%; height:80vh; border:none; display:block;"></iframe>
+</div>
+
 <div id="calendarioContainer" class="hidden"></div>
 
 <!-- Modal técnico -->
@@ -939,7 +949,80 @@
     document.getElementById("authEntrarBtn").classList.toggle("hidden", logado);
     document.getElementById("authSairBtn").classList.toggle("hidden", !logado);
     document.getElementById("authStatus").textContent = logado ? sessaoAtual.user.email : "Somente leitura";
+    atualizarVisibilidadeConformeAuth(logado);
   }
+
+  // Quem não está logado só enxerga a escala (não edita): mostra a visão de um
+  // dia só, igual ao HTML exportado, em vez da grade completa de edição da
+  // semana — essa é só pra quem está logado.
+  function atualizarVisibilidadeConformeAuth(logado){
+    // Só esconde os controles da grade de edição (navegação de semana, abas de
+    // cidade, calendário mensal, novo técnico) — exportar/relatório/backup
+    // continuam disponíveis pra quem só lê, como já eram antes.
+    ["semanaAnteriorBtn", "periodoLabel", "semanaProximaBtn", "semanaHojeBtn", "toggleCalendarioBtn", "novoTecnicoBtn"].forEach(function(id){
+      document.getElementById(id).classList.toggle("hidden", !logado);
+    });
+    document.getElementById("cityTabs").classList.toggle("hidden", !logado);
+    document.getElementById("scheduleContainer").classList.toggle("hidden", !logado);
+    document.getElementById("legendaTurnos").classList.toggle("hidden", !logado);
+    document.getElementById("visaoDiaLeitura").classList.toggle("hidden", logado);
+    if(!logado){
+      document.getElementById("calendarioContainer").classList.add("hidden");
+      renderVisaoDiaAtual();
+    }
+  }
+
+  function domingoDaSemanaAtual(){
+    var hoje = new Date();
+    var dow = hoje.getDay();
+    var dom = new Date(hoje);
+    dom.setDate(hoje.getDate() + (dow === 0 ? 0 : 7 - dow));
+    return isoDate(dom);
+  }
+
+  // Quantas semanas (pro weekOffset/computeWeek) uma data está de distância da semana atual.
+  function weekOffsetParaData(dataIso){
+    var partes = dataIso.split("-").map(Number);
+    var alvo = new Date(partes[0], partes[1]-1, partes[2]);
+    var hoje = new Date();
+    var dowHoje = hoje.getDay();
+    var segundaAtual = new Date(hoje);
+    segundaAtual.setDate(hoje.getDate() + (dowHoje === 0 ? -6 : 1 - dowHoje));
+    segundaAtual.setHours(0,0,0,0);
+    var dowAlvo = alvo.getDay();
+    var segundaAlvo = new Date(alvo);
+    segundaAlvo.setDate(alvo.getDate() + (dowAlvo === 0 ? -6 : 1 - dowAlvo));
+    segundaAlvo.setHours(0,0,0,0);
+    return Math.round((segundaAlvo.getTime() - segundaAtual.getTime()) / (7*24*60*60*1000));
+  }
+
+  // Renderiza a escala de um único dia (todas as cidades) reaproveitando a
+  // mesma geração de HTML da exportação, dentro de um iframe — isola o CSS do
+  // export do CSS da tela de edição, sem precisar duplicar nenhuma lógica.
+  function renderVisaoDiaLeitura(dataIso){
+    var offsetOriginal = weekOffset;
+    weekOffset = weekOffsetParaData(dataIso);
+    computeWeek();
+    var partes = dataIso.split("-").map(Number);
+    var alvo = new Date(partes[0], partes[1]-1, partes[2]);
+    var dowAlvo = alvo.getDay();
+    var idx = dowAlvo === 0 ? 6 : dowAlvo - 1;
+    document.getElementById("visaoDiaIframe").srcdoc = gerarHtmlExportacao([idx]);
+    weekOffset = offsetOriginal;
+    computeWeek();
+  }
+
+  function renderVisaoDiaAtual(){
+    var input = document.getElementById("visaoDiaInput");
+    if(!input.max) input.max = domingoDaSemanaAtual();
+    if(!input.value) input.value = isoDate(new Date());
+    renderVisaoDiaLeitura(input.value);
+  }
+
+  document.getElementById("visaoDiaInput").addEventListener("change", function(){
+    if(this.max && this.value > this.max) this.value = this.max;
+    renderVisaoDiaLeitura(this.value);
+  });
 
   function abrirLoginModal(){
     document.getElementById("loginErro").classList.add("hidden");
@@ -2691,8 +2774,8 @@ h1,h2,h3{font-family:"Barlow Condensed","Segoe UI",Arial,sans-serif;}
   // Mostra algo na tela imediatamente com o cache local (carregarDoCacheLocal, dentro de
   // loadData, é síncrono), depois confere a sessão de login e busca a versão mais recente
   // no Supabase — quando os dois voltarem, re-renderiza com o estado final.
-  atualizarAuthUI();
   var cargaInicial = loadData();
+  atualizarAuthUI();
   render();
 
   Promise.all([
