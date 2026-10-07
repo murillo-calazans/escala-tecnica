@@ -486,6 +486,9 @@
   <button class="btn btn-secondary" id="exportarBtn">⬇ Exportar escala</button>
   <input type="month" id="relatorioMesInput" class="btn btn-secondary">
   <button class="btn btn-secondary" id="relatorioMensalBtn">📊 Relatório mensal</button>
+  <button class="btn btn-secondary" id="backupExportarBtn" title="Baixa um arquivo com todos os dados da escala (técnicos, horários, exceções)">💾 Backup</button>
+  <input type="file" id="backupImportarInput" accept="application/json" style="display:none;">
+  <button class="btn btn-secondary" id="backupImportarBtn" title="Restaura os dados de um arquivo de backup, substituindo os dados atuais deste navegador">📂 Restaurar backup</button>
   <button class="btn btn-primary" id="novoTecnicoBtn">+ Novo técnico</button>
 </header>
 
@@ -850,6 +853,51 @@
   function saveData(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(techs));
   }
+
+  // Backup manual: baixa/restaura o array "techs" inteiro como arquivo JSON.
+  // Serve tanto pra guardar uma cópia de segurança quanto pra migrar os
+  // dados de um navegador pra outro (ex: pra importar depois num banco).
+  document.getElementById("backupExportarBtn").addEventListener("click", function(){
+    var blob = new Blob([JSON.stringify(techs, null, 2)], { type: "application/json" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "escala-tecnica-backup-" + isoDate(new Date()) + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById("backupImportarBtn").addEventListener("click", function(){
+    document.getElementById("backupImportarInput").click();
+  });
+
+  document.getElementById("backupImportarInput").addEventListener("change", function(e){
+    var file = e.target.files[0];
+    e.target.value = "";
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      var dados;
+      try{
+        dados = JSON.parse(reader.result);
+      }catch(err){
+        alert("Arquivo inválido: não é um JSON de backup da escala.");
+        return;
+      }
+      if(!Array.isArray(dados)){
+        alert("Arquivo inválido: não é um backup da escala técnica.");
+        return;
+      }
+      if(!confirm("Isso vai SUBSTITUIR todos os dados atuais deste navegador pelos do arquivo \"" + file.name + "\". Continuar?")) return;
+      techs = dados.map(migrarTech);
+      saveData();
+      render();
+      alert("Backup restaurado.");
+    };
+    reader.readAsText(file);
+  });
 
   // --- semana exibida (seg a dom), navegável ---
   var weekOffset = 0; // 0 = semana atual, -1 = semana anterior, +1 = próxima, etc.
