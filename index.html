@@ -516,6 +516,11 @@
     </div>
 
     <div class="field">
+      <label>Região padrão</label>
+      <select id="techRegiao"></select>
+    </div>
+
+    <div class="field">
       <label>Setor</label>
       <select id="techSetor">
         <option value="Instalador">Instalador</option>
@@ -684,6 +689,10 @@
     "Nova Friburgo", "Bom Jardim", "Cachoeiras de Macacu", "Japuíba", "Papucaia",
     "Rio Bonito", "Silva Jardim", "Rio das Ostras", "Cabo Frio", "Petrópolis",
     "Teresópolis", "Guapimirim", "São Paulo"
+  ];
+
+  var REGIOES = [
+    "Região Norte", "Região Sul", "Região Central", "Região Oeste", "Região Leste", "Região Rural"
   ];
 
   // Feriados: chave "AAAA-MM-DD" -> nome. Edite/complete livremente.
@@ -1395,6 +1404,20 @@
     });
   }
 
+  function fillRegiaoSelect(select, selected){
+    select.innerHTML = "";
+    var optNenhuma = document.createElement("option");
+    optNenhuma.value = "";
+    optNenhuma.textContent = "Sem região padrão";
+    select.appendChild(optNenhuma);
+    REGIOES.forEach(function(r){
+      var opt = document.createElement("option");
+      opt.value = r; opt.textContent = r;
+      select.appendChild(opt);
+    });
+    select.value = selected || "";
+  }
+
   function fillDuplaSelect(select, techId, selected){
     select.innerHTML = "";
     var optNone = document.createElement("option");
@@ -1486,6 +1509,7 @@
     document.getElementById("techResetDias").checked = false;
     document.getElementById("techOutrasPadrao").checked = DIAS.every(function(dia){ return !!tech.horarios[dia].outras; });
     fillCidadeSelect(document.getElementById("techCidade"), tech.cidade);
+    fillRegiaoSelect(document.getElementById("techRegiao"), tech.regiao);
     document.getElementById("techSetor").value = tech.setor;
     fillDuplaSelect(document.getElementById("techDupla"), tech.id, tech.dupla);
     document.getElementById("techStatus").value = tech.status;
@@ -1545,6 +1569,7 @@
       nome: "Novo Técnico",
       setor: "Instalador",
       cidade: cidadeInicial,
+      regiao: null,
       status: "trabalhando",
       feriasInicio: null,
       feriasFim: null,
@@ -1588,6 +1613,7 @@
       }
     });
     tech.cidade = document.getElementById("techCidade").value;
+    tech.regiao = document.getElementById("techRegiao").value || null;
     tech.setor = document.getElementById("techSetor").value;
     tech.dupla = document.getElementById("techDupla").value || null;
     tech.status = document.getElementById("techStatus").value;
